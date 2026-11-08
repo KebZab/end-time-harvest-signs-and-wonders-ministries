@@ -6,6 +6,7 @@ const app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ADMIN_PAGE = /\/admin(?:\.html)?\/?$/.test(location.pathname);
 let me = null, books = [], bibleTranslations = [], route = {}, current = null;
+let liveTimer, pendingLiveChange = null;
 
 const api = (...args) => window.ChurchAPI.api(...args);
 
@@ -20,21 +21,43 @@ const fmtDate = (d, long = true) => new Date(d + 'T00:00:00').toLocaleDateString
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const isAdmin = () => ADMIN_PAGE && me?.role === 'ADMIN' && me?.active;
 
+let stopWatchingSelection = () => {};
+function watchTextSelection(element, onSelect) {
+  stopWatchingSelection();
+  if (!element) return;
+  const capture = () => {
+    const selection = window.getSelection();
+    if (selection?.rangeCount && element.contains(selection.anchorNode) && element.contains(selection.focusNode)) {
+      const text = selection.toString().trim();
+      if (text) onSelect(text);
+    }
+  };
+  document.addEventListener('selectionchange', capture);
+  element.addEventListener('pointerup', capture);
+  stopWatchingSelection = () => {
+    document.removeEventListener('selectionchange', capture);
+    element.removeEventListener('pointerup', capture);
+  };
+}
+
 function openModal(html, isWide = false) {
+  stopWatchingSelection();
   const m = $('#modal');
   const isApp = html.includes('bible-app-modal'); // full-screen Bible reader on phones
   m.className = isApp ? 'modal-app' : '';
   m.innerHTML = `<div class="dialog ${isWide ? 'dialog-wide' : ''} ${isApp ? 'dialog-app' : ''}" role="dialog" aria-modal="true">${html}</div>`;
   m.hidden = false;
   document.body.style.overflow = 'hidden';
-  (m.querySelector('input,textarea,select') || m.querySelector('button'))?.focus();
+  (m.querySelector('[data-act=close]') || m.querySelector('button'))?.focus({ preventScroll: true });
 }
 
 function closeModal() {
+  stopWatchingSelection();
   const m = $('#modal');
   m.hidden = true;
   m.innerHTML = '';
   document.body.style.overflow = '';
+  if (pendingLiveChange) scheduleLiveUpdate(pendingLiveChange);
 }
 
 /* ---------- Bible reference & aliases ---------- */
@@ -111,66 +134,64 @@ function formatPassageText(text, highlights) {
 }
 
 /* ---------- Layout Shell ---------- */
+const ICONS = {
+  home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-8h6v8"/>',
+  archive: '<rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 3v3m8-3v3M8 11h8M8 15h5"/>',
+  book: '<path d="M12 5c-3-2-7-2-10-1v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Zm0 0v15"/>',
+  settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
+  arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>'
+};
+const icon = name => '<svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+
 function shell(inner) {
   const admin = isAdmin();
-  // [hash, desktop label, short mobile label, icon]
-  const links = admin ? [
-    ['', 'Dashboard', 'Home', '🏠'],
-    ['archive', 'Sermon archive', 'Sermons', '📚'],
-    ['bible', 'Bible Library', 'Bible', '📖'],
-    ['new', 'New sermon', 'New', '➕'],
-    ['members', 'Access & backup', 'Access', '👥']
-  ] : [
-    ['', 'Home', 'Home', '🏠'],
-    ['archive', 'Sermon archive', 'Sermons', '📚'],
-    ['bible', 'Bible Library', 'Bible', '📖']
-  ];
-  const here = route.name === 'sermon' || route.name === 'edit' ? 'archive' : route.name;
-
+  const links = [['','Home','home'],['archive','Sermons','archive'],['bible','Bible','book']];
+  if(admin) links.push(['members','Settings','settings']);
+  const here = ['sermon','edit','new'].includes(route.name) ? 'archive' : route.name;
   return `<a class="skip" href="#main">Skip to content</a>
-  ${admin ? '<div class="adminbar">Administrator panel: manage sermons, scripture passages, and highlights.</div>' : ''}
-  <header class="top"><div class="top-in">
-    <a class="brand" href="#/"><img src="static/logo.png" alt="Church logo"><span class="name">${esc(CHURCH)}</span></a>
-    <div class="who">${admin ? `<span class="badge">Admin</span> <span class="who-name">${esc(me.full_name)}</span>
-      <a class="linkbtn" href="viewer.html">View public library</a><button class="linkbtn" data-act="account">Account</button><button class="linkbtn" data-act="logout">Sign out</button>`
-      : '<span class="badge viewer">Public library</span><a class="linkbtn" href="admin.html">Admin sign in</a>'}</div></div>
-  <nav class="main" aria-label="Main"><div>${links.map(([h, t, s, i]) => `<a href="#/${h}" ${(here || '') === h ? 'aria-current="page"' : ''}><span class="nav-ico" aria-hidden="true">${i}</span><span class="nav-full">${t}</span><span class="nav-short">${s}</span></a>`).join('')}</div></nav></header>
-  <main id="main">${inner}</main><footer>${esc(CHURCH)}</footer>`;
+    <header class="top"><div class="top-in">
+      <a class="brand" href="#/" aria-label="${esc(CHURCH)} — home"><img src="static/logo.png" alt="" width="40" height="40">
+        <span><span class="name">End Time Harvest</span><span class="brand-sub">Signs &amp; Wonders Ministries</span></span></a>
+      ${admin ? '<div class="who"><span class="adminbar">Admin</span></div>' : ''}
+    </div>
+    <nav class="main" aria-label="Main navigation"><div>${links.map(([h,label,i]) => `<a href="#/${h}" ${here === h ? 'aria-current="page"' : ''}>${icon(i)}<span>${label}</span></a>`).join('')}</div></nav></header>
+    <main id="main" tabindex="-1">${inner}</main>
+    <footer>${esc(CHURCH)}${admin ? '<a href="viewer.html">View public library</a>' : ''}</footer>`;
 }
 
 function sermonRow(s) {
   const d = new Date(s.sermon_date + 'T00:00:00');
-  const refs = s.refs || [];
   return `<a class="row" href="#/sermon/${s.id}">
-    <div class="date"><b>${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span></div>
-    <div><h3>${esc(s.title)}</h3><p>${esc(s.pastor)}</p>
-      ${refs.length ? `<div class="chips">${refs.slice(0, 5).map(r => `<span class="chip">${esc(r)}</span>`).join('')}${refs.length > 5 ? `<span class="chip">+${refs.length - 5} more</span>` : ''}</div>` : ''}</div>
-    <div class="count">${refs.length} verse${refs.length === 1 ? '' : 's'}</div></a>`;
+    <time class="date" datetime="${s.sermon_date}"><b>${d.getDate()}</b><span>${d.toLocaleDateString(undefined,{month:'short'})}</span></time>
+    <div class="row-content"><h3>${esc(s.title)}</h3><p>${esc(s.pastor)} <span aria-hidden="true">·</span> ${d.getFullYear()}</p></div>
+    ${icon('arrow')}</a>`;
 }
 
 /* ---------- Dashboard View ---------- */
 async function viewDashboard() {
   const d = await api('/stats'), L = d.latest, admin = isAdmin();
-  const hero = L ? `<section class="hero" aria-labelledby="latest">
-      <p class="kicker">Latest message</p>
-      <h1 id="latest">${esc(L.title)}</h1>
-      <p class="by">Preached by <b>${esc(L.pastor)}</b></p><p class="when">${fmtDate(L.sermon_date)}</p>
-      ${L.verses.length ? `<h2>Bible passages mentioned</h2><div class="chips" style="margin-bottom:1.2rem">${L.verses.map(v => `<span class="chip" style="font-size:.95rem;padding:.2rem .75rem"><b>${esc(v.ref)}</b></span>`).join('')}</div>` : '<p>No Bible verses have been recorded for this sermon yet.</p>'}
-      <div class="actions"><a class="btn" href="#/sermon/${L.id}">Open full sermon & scriptures</a>${admin ? `<a class="btn ghost" style="color:#ffe39a;border-color:#ffe39a" href="#/edit/${L.id}">Edit sermon</a>` : ''}</div>
-    </section>` : `<section class="hero"><p class="kicker">Welcome</p><h1>No sermons recorded yet</h1>
-      <p>${admin ? 'Record your first sermon to start building the church library.' : 'Please check back soon. New messages will appear here.'}</p>
-      ${admin ? '<div class="actions"><a class="btn" href="#/new">Record the first sermon</a></div>' : ''}</section>`;
-
-  const rest = d.recent.filter(s => !L || s.id !== L.id).slice(0, 5);
-  return shell(`${hero}
-    <dl class="facts"><div><dd>${d.total_sermons}</dd><dt>Sermons recorded</dt></div><div><dd>${d.total_verses}</dd><dt>Bible verses recorded</dt></div>
-    ${L ? `<div><dd>${fmtDate(L.sermon_date, false)}</dd><dt>Date of latest service</dt></div>` : ''}</dl>
-    <div class="sec-head"><h2>Find a sermon or Bible verse</h2></div>
-    <form class="search" data-form="search"><label class="hint" for="q" style="display:none">Search</label>
-      <input id="q" type="search" placeholder="Search by topic, pastor, date, or scripture (e.g., John 3:16, grace)" autocomplete="off">
-      <button class="btn" type="submit">Search</button></form>
-    <div class="sec-head"><h2>Recent sermons</h2><a href="#/archive">Open the complete sermon archive</a></div>
-    ${rest.length ? `<div class="rows">${rest.map(sermonRow).join('')}</div>` : '<div class="card empty">Earlier sermons will be listed here.</div>'}`);
+  const rest = d.recent.filter(s => !L || s.id !== L.id).slice(0,4);
+  const explore = admin ? '' : `<nav class="viewer-explore" aria-label="Explore the library">
+    <a class="browse-card" href="#/archive"><span class="browse-icon">${icon('archive')}</span>
+      <span class="browse-copy"><strong>All sermons</strong><span>Find a past message</span></span>${icon('arrow')}</a>
+    <a class="browse-card" href="#/bible"><span class="browse-icon">${icon('book')}</span>
+      <span class="browse-copy"><strong>Read the Bible</strong><span>Explore the scriptures</span></span>${icon('arrow')}</a>
+  </nav>`;
+  return shell(`<div class="${admin ? 'admin-home' : 'viewer-home'}"><div class="page-heading"><div><h1>Sermon library</h1><p class="muted">Read, reflect, and revisit.</p></div>
+    ${admin ? `<a class="btn" href="#/new">${icon('plus')} New sermon</a>` : ''}</div>
+    ${L ? `<section class="hero" aria-labelledby="latest"><p class="kicker">Latest sermon</p>
+      <h2 id="latest">${esc(L.title)}</h2><p class="sermon-meta">${esc(L.pastor)} <span aria-hidden="true">·</span> ${fmtDate(L.sermon_date,false)}</p>
+      <a class="btn" href="#/sermon/${L.id}">Read sermon ${icon('arrow')}</a></section>
+      <form class="search ${admin ? '' : 'viewer-search'}" data-form="search"><label class="sr-only" for="q">Search sermons or scripture</label>
+        ${admin ? '' : icon('search')}<input id="q" type="search" placeholder="Search sermons or scripture" autocomplete="off"><button class="btn ghost" type="submit">Search</button></form>
+      ${explore}
+      ${rest.length ? `<div class="sec-head"><h2>Recent sermons</h2>${admin ? '<a href="#/archive">View all</a>' : ''}</div><div class="rows">${rest.map(sermonRow).join('')}</div>`
+        : admin ? '<a class="text-link" href="#/archive">Browse all sermons →</a>' : ''}`
+      : `<section class="empty-state">${icon('book')}<h2>No sermons recorded yet</h2><p>${admin ? 'Add your first sermon to begin the library.' : 'New messages will appear here after the next service.'}</p>
+        <a class="btn ghost" href="#/bible">Read the Bible</a></section>`}</div>`);
 }
 
 /* ---------- Archive View ---------- */
@@ -180,60 +201,54 @@ function archiveList(list, q) {
 }
 
 async function viewArchive() {
-  const q = route.q || '', list = await api('/sermons?q=' + encodeURIComponent(q));
-  return shell(`<div class="sec-head" style="margin-top:0"><h1 style="margin:0">Sermon archive</h1>${isAdmin() ? '<a class="btn" href="#/new">New sermon</a>' : ''}</div>
-    <div class="card"><label for="q">Search sermons</label>
-    <input id="q" type="search" value="${esc(q)}" placeholder="Topic, pastor, date (2026-11), or scripture (John 3:16)" autocomplete="off"></div>
-    <p class="muted" id="count" style="margin:1rem 0 .5rem">${list.length} sermon${list.length === 1 ? '' : 's'}</p>
-    <div id="results">${archiveList(list, q)}</div>`);
+  const q = route.q || '', data = await api('/sermons?q=' + encodeURIComponent(q) + '&page=' + route.page);
+  return shell(`<div class="page-heading"><h1>Sermons</h1>${isAdmin() ? `<a class="btn" href="#/new">${icon('plus')} New sermon</a>` : ''}</div>
+    <div class="archive-search"><label class="sr-only" for="q">Search sermons</label>
+      <input id="q" type="search" value="${esc(q)}" placeholder="Search topic, pastor, or scripture" autocomplete="off"></div>
+    <p class="results-count" id="count" aria-live="polite">${archiveCount(data)}</p>
+    <div id="results">${archiveList(data.items,q)}</div><div id="archive-pager">${archivePager(data,q)}</div>`);
+}
+function archiveCount(data) {
+  if (!data.items.length) return 'No sermons found';
+  const start = data.page * data.page_size + 1, end = start + data.items.length - 1;
+  return `Showing ${start}–${end}`;
+}
+function archivePager(data,q) {
+  if (!data.page && !data.has_more) return '';
+  const link = page => '#/archive?q=' + encodeURIComponent(q) + '&page=' + page;
+  return `<nav class="archive-pagination" aria-label="Sermon pages">${data.page ? `<a class="btn ghost" href="${link(data.page-1)}">← Newer</a>` : '<span></span>'}
+    ${data.has_more ? `<a class="btn ghost" href="${link(data.page+1)}">Older →</a>` : ''}</nav>`;
 }
 
 /* ---------- Sermon Detail View ---------- */
 function passageCard(v, idx, total, admin) {
-  const highlights = v.highlights || [];
-  const renderedText = formatPassageText(v.verse_text, highlights);
-
   return `<article class="passage-card" data-verse-id="${v.id}">
-    <div class="p-head">
-      <div class="p-ref">
-        <h3>${esc(v.book)} ${v.chapter}:${esc(v.verse_list || (v.verse_start ? v.verse_start + (v.verse_end ? '-' + v.verse_end : '') : ''))}</h3>
-        <span class="p-tr-badge">${esc(v.translation || 'KJV')}</span>
-      </div>
-      <div class="p-actions">
-        <button class="btn ghost small" data-act="copy-passage" data-id="${v.id}" title="Copy scripture with reference" aria-label="Copy">📋<span class="t"> Copy</span></button>
-        ${admin ? `
-          ${idx > 0 ? `<button class="btn ghost small" data-act="move-verse" data-id="${v.id}" data-dir="up" title="Move up" aria-label="Move up">▲</button>` : ''}
-          ${idx < total - 1 ? `<button class="btn ghost small" data-act="move-verse" data-id="${v.id}" data-dir="down" title="Move down" aria-label="Move down">▼</button>` : ''}
-          <button class="btn ghost small" data-act="edit-passage" data-id="${v.id}" title="Edit / Highlight" aria-label="Edit">✏️<span class="t"> Edit</span></button>
-          <button class="btn danger small" data-act="del-verse" data-id="${v.id}" title="Delete" aria-label="Delete">🗑<span class="t"> Delete</span></button>
-        ` : ''}
-      </div>
-    </div>
-    <div class="p-body">
-      ${renderedText ? renderedText : '<p class="muted">Text not available.</p>'}
-    </div>
-    ${v.note ? `<div class="p-note"><b>Pastor's Note:</b> ${esc(v.note)}</div>` : ''}
-  </article>`;
+    <div class="p-head"><div class="p-ref"><h3>${esc(v.book)} ${v.chapter}:${esc(v.verse_list || (v.verse_start ? v.verse_start + (v.verse_end ? '-' + v.verse_end : '') : ''))}</h3>
+      <span class="p-tr-badge">${esc(v.translation || 'KJV')}</span></div>
+      <div class="p-actions"><button class="btn ghost small" data-act="copy-passage" data-id="${v.id}" aria-label="Copy passage">Copy</button>
+      ${admin ? `<details class="more-menu"><summary aria-label="Passage options">${icon('more')}</summary><div class="menu-items">
+        <button data-act="edit-passage" data-id="${v.id}">Edit / highlight</button>
+        ${idx > 0 ? `<button data-act="move-verse" data-id="${v.id}" data-dir="up">Move up</button>` : ''}
+        ${idx < total - 1 ? `<button data-act="move-verse" data-id="${v.id}" data-dir="down">Move down</button>` : ''}
+        <button class="danger-text" data-act="del-verse" data-id="${v.id}">Delete passage</button></div></details>` : ''}</div></div>
+    <div class="p-body">${formatPassageText(v.verse_text,v.highlights || []) || '<p class="muted">Text not available.</p>'}</div>
+    ${v.note ? `<div class="p-note"><b>Note</b><p>${esc(v.note)}</p></div>` : ''}</article>`;
 }
 
 async function viewSermon() {
-  const s = current = await api('/sermons/' + route.id), admin = isAdmin();
-  const verses = s.verses || [];
-
-  return shell(`<a class="back" href="#/archive">← Back to sermon archive</a>
-    <article class="s-head"><h1>${esc(s.title)}</h1><p><b>${esc(s.pastor)}</b></p><p>${fmtDate(s.sermon_date)}</p>
+  const version = renderVersion;
+  const s = await api('/sermons/' + route.id), admin = isAdmin(), verses = s.verses || [];
+  if (version !== renderVersion) return '';
+  current = s;
+  return shell(`<a class="back" href="#/archive">← Sermons</a>
+    <article class="s-head"><h1>${esc(s.title)}</h1><p class="sermon-meta">${esc(s.pastor)} <span aria-hidden="true">·</span> ${fmtDate(s.sermon_date,false)}</p>
       ${s.description ? `<p class="desc">${esc(s.description)}</p>` : ''}
-      ${admin ? `<div class="actions" style="margin-top:1.2rem"><button class="btn" data-act="add-bible-passage">📖 Add Bible Verse</button><a class="btn ghost" href="#/edit/${s.id}">Edit sermon info</a><button class="btn danger" data-act="del-sermon">Delete sermon</button></div>` : ''}</article>
-    
-    <section class="card" style="margin-top:1.5rem">
-      <div class="sec-head" style="margin-top:0">
-        <h2>Bible Passages Mentioned (${verses.length})</h2>
-        ${admin ? `<button class="btn small" data-act="add-bible-passage">+ Add Bible Verse</button>` : ''}
-      </div>
-      ${verses.length ? `<div class="passage-list">${verses.map((v, i) => passageCard(v, i, verses.length, admin)).join('')}</div>`
-        : `<div class="card empty"><p>No Bible passages have been recorded for this sermon yet.</p>
-           ${admin ? `<button class="btn" data-act="add-bible-passage">Add the first Bible passage</button>` : ''}</div>`}
-    </section>`);
+      ${admin ? `<div class="actions"><a class="btn ghost small" href="#/edit/${s.id}">Edit sermon</a>
+        <details class="more-menu"><summary aria-label="Sermon options">${icon('more')}</summary><div class="menu-items"><button class="danger-text" data-act="del-sermon">Delete sermon</button></div></details></div>` : ''}</article>
+    <section class="scriptures"><div class="sec-head"><h2>Scripture <span class="muted" id="scripture-count">${verses.length}</span></h2>
+      ${admin ? `<button class="btn small" data-act="add-bible-passage">${icon('plus')} Add passage</button>` : ''}</div>
+      <div id="passages-content">${verses.length ? `<div class="passage-list">${verses.map((v,i)=>passageCard(v,i,verses.length,admin)).join('')}</div>`
+        : '<div class="empty card">No scripture passages added yet.</div>'}</div></section>`);
 }
 
 /* ---------- Sermon Form (Create / Edit) ---------- */
@@ -253,10 +268,10 @@ async function viewForm() {
       <div class="field"><label for="desc">Short description or notes <span class="hint">(optional)</span></label><textarea id="desc" rows="4" maxlength="5000">${esc(s.description)}</textarea></div>
       
       ${editing ? '' : `
-      <div class="card" style="background:rgba(242,181,27,.06);border:1.5px dashed var(--gold);padding:1rem;margin-bottom:1.5rem">
+      <div class="staging-area">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
           <div><b>Bible passages for this sermon</b><br><span class="muted" id="form-staged-count">${newSermonStagedVerses.length} passage(s) staged</span></div>
-          <button type="button" class="btn small" data-act="form-add-passage">📖 Add Bible Verse from Library</button>
+          <button type="button" class="btn small" data-act="form-add-passage">Add scripture</button>
         </div>
         <div id="form-staged-list" style="margin-top:.8rem">${renderFormStagedVerses()}</div>
       </div>`}
@@ -266,7 +281,7 @@ async function viewForm() {
 
 function renderFormStagedVerses() {
   if (!newSermonStagedVerses.length) {
-    return `<p class="hint">No passages added yet. Click "Add Bible Verse from Library" above to browse, highlight, and stage passages.</p>`;
+    return `<p class="hint">Choose verses from the Bible and add a note or highlight.</p>`;
   }
   return `<div style="display:flex;flex-direction:column;gap:.5rem">${newSermonStagedVerses.map((v, i) => `
     <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:.5rem .8rem">
@@ -365,8 +380,8 @@ async function viewBible() {
         <select id="b-tr-select" class="bible-tr" aria-label="Translation" title="${esc(curTr.name || curTr.id)}">
           ${trs.map(t => `<option value="${t.id}" ${t.id === S.tr ? 'selected' : ''}>${t.id}</option>`).join('')}
         </select>
-        <span style="flex:1"></span>
-        <button type="button" class="bible-arrow-btn ${S.searchOpen ? 'active' : ''}" data-act="b-toggle-search" title="Search" aria-label="Search">🔍</button>
+        <span class="toolbar-spacer"></span>
+        <button type="button" class="bible-arrow-btn ${S.searchOpen ? 'active' : ''}" data-act="b-toggle-search" title="Search" aria-label="Search">${icon('search')}</button>
       </div>
       ${panel}
     </div>`);
@@ -574,10 +589,10 @@ function renderBibleSelectorModal() {
           <button type="button" class="bible-x" data-act="m-clear-sel" title="Deselect">✕</button>
         </div>
         <div class="bible-palette">
-          ${['yellow', 'green', 'blue', 'pink', 'orange'].map(c => `<button type="button" class="b-swatch swatch-${c}" data-act="m-apply-hl" data-color="${c}" title="Highlight ${c}"></button>`).join('')}
+          ${['yellow', 'green', 'blue', 'pink', 'orange'].map(c => `<button type="button" class="b-swatch swatch-${c}" data-act="m-apply-hl" data-color="${c}" title="Highlight ${c}" aria-label="Highlight ${c}"></button>`).join('')}
           <button type="button" class="b-swatch swatch-none" data-act="m-clear-hl" title="Remove highlight">⊘</button>
         </div>
-        <input id="m-passage-note" class="bible-note-input" value="${esc(modalState.noteText)}" placeholder="Note (optional)">
+        <input id="m-passage-note" aria-label="Passage note" class="bible-note-input" value="${esc(modalState.noteText)}" placeholder="Note (optional)">
         <div class="bible-bar-row">
           <button type="button" class="btn ghost" data-act="m-stage-passage">+ Add another</button>
           <button type="button" class="btn" data-act="m-save-direct">Save${nStaged ? ` (${nStaged + 1})` : ''}</button>
@@ -597,19 +612,19 @@ function renderBibleSelectorModal() {
 
   const back = modalState.tab !== 'browse';
   const html = `
-    <div class="bible-app-modal">
+    <div class="bible-app-modal${picker ? ' is-picking' : ''}">
       <div class="bible-top-nav">
         ${back ? `<button type="button" class="bible-arrow-btn" data-act="m-tab" data-t="browse" title="Back">‹</button>
                   <b class="bible-nav-title">${modalState.tab === 'search' ? 'Search' : 'Added passages'}</b>` : `
-        <button type="button" class="bible-arrow-btn" data-act="m-prev-ch" title="Previous chapter">‹</button>
+        <button type="button" class="bible-arrow-btn" data-act="m-prev-ch" title="Previous chapter" aria-label="Previous chapter">‹</button>
         <button type="button" class="bible-nav-btn" data-act="m-toggle-picker">${esc(modalState.book)} ${modalState.chapter} ▾</button>
-        <button type="button" class="bible-arrow-btn" data-act="m-next-ch" title="Next chapter">›</button>
+        <button type="button" class="bible-arrow-btn" data-act="m-next-ch" title="Next chapter" aria-label="Next chapter">›</button>
         <select id="m-tr-select" class="bible-tr" title="${esc(curTr.name || curTr.id)}" aria-label="Translation">
           ${trs.map(t => `<option value="${t.id}" ${t.id === modalState.tr ? 'selected' : ''}>${t.id}</option>`).join('')}
         </select>`}
-        <span style="flex:1"></span>
-        ${back ? '' : '<button type="button" class="bible-arrow-btn" data-act="m-tab" data-t="search" title="Search">🔍</button>'}
-        <button type="button" class="bible-arrow-btn" data-act="close" title="Close">✕</button>
+        <span class="toolbar-spacer"></span>
+        ${back ? '' : `<button type="button" class="bible-arrow-btn" data-act="m-tab" data-t="search" title="Search" aria-label="Search">${icon('search')}</button>`}
+        <button type="button" class="bible-arrow-btn" data-act="close" title="Close" aria-label="Close">✕</button>
       </div>
       ${picker}
       ${body}
@@ -654,16 +669,7 @@ function setupModalEvents() {
     };
   }
 
-  const verseFlow = $('#m-verse-flow');
-  if (verseFlow) {
-    verseFlow.addEventListener('mouseup', () => {
-      const sel = window.getSelection();
-      const txt = sel ? sel.toString().trim() : '';
-      if (txt.length > 0) {
-        modalState.selectedTextRange = txt;
-      }
-    });
-  }
+  watchTextSelection($('#m-verse-flow'), text => { modalState.selectedTextRange = text; });
 
   const noteInput = $('#m-passage-note');
   if (noteInput) {
@@ -723,7 +729,7 @@ function openEditPassage(v) {
     const renderedHl = formatPassageText(editText, editHighlights);
     return `
       <div class="dialog-head">
-        <h2>Edit Bible Passage & Highlights</h2>
+        <h2>Edit passage</h2>
         <button class="btn ghost small" data-act="close">✕ Close</button>
       </div>
       <div class="grid2">
@@ -786,14 +792,7 @@ function openEditPassage(v) {
       };
     }
 
-    const textBody = $('#edit-passage-body');
-    if (textBody) {
-      textBody.addEventListener('mouseup', () => {
-        const sel = window.getSelection();
-        const txt = sel.toString().trim();
-        if (txt.length > 0) selectedText = txt;
-      });
-    }
+    watchTextSelection($('#edit-passage-body'), text => { selectedText = text; });
 
     $$('[data-act="edit-apply-hl"]').forEach(b => {
       b.onclick = () => {
@@ -854,27 +853,23 @@ function openEditPassage(v) {
 
 /* ---------- Administrator access ---------- */
 async function viewMembers() {
-  return shell(`<h1>Access & backup</h1>
-    <div class="card"><h2>Public sermon library</h2><p>Everyone can read sermons, scriptures, and highlights without creating an account.</p>
-      <a class="btn" href="viewer.html">Open viewer page</a></div>
-    <div class="card"><h2>Administrator access</h2><p>Signed in as <b>${esc(me.email)}</b>.</p>
-      <p>Additional administrators are created by the project owner in Supabase Authentication. Viewer accounts are not needed.</p>
-      <button class="btn ghost" data-act="account">Change your password</button></div>
-    <div class="card"><h2>Backup</h2><p>Download all sermons and scripture passages, including notes and highlights.</p>
-      <button class="btn" data-act="export">Download backup</button></div>`);
+  return shell(`<div class="page-heading"><h1>Settings</h1></div>
+    <section class="card settings-card"><h2>Your account</h2><p class="muted">${esc(me.email)}</p>
+      <div class="actions"><button class="btn ghost" data-act="account">Change password</button><button class="btn ghost" data-act="logout">Sign out</button></div></section>
+    <section class="card settings-card"><h2>Backup</h2><p class="muted">Save a copy of your sermons, scripture, and notes.</p><button class="btn" data-act="export">Download backup</button></section>
+    <a class="text-link" href="viewer.html">Open public library →</a>`);
 }
 
 function viewLogin() {
   document.body.className = 'gate';
-  app.innerHTML = `<main class="login"><div class="login-card"><img src="static/logo.png" alt="Church logo">
-    <h1>${esc(CHURCH)}</h1><p class="sub">Administrator sign in</p>
-    <p>Read sermons freely on the <a href="viewer.html">public viewer page</a>.</p>
+  app.innerHTML = `<main class="login"><div class="login-card">
+    <a class="login-brand" href="viewer.html"><img src="static/logo.png" alt="" width="56" height="56"><span>End Time Harvest</span></a>
+    <h1>Admin sign in</h1><p class="muted">Manage sermons and scripture.</p>
     <form data-form="login"><div id="err" role="alert"></div>
-      <div class="field"><label for="un">Administrator email</label><input id="un" type="email" required autocapitalize="off" autocomplete="username"></div>
+      <div class="field"><label for="un">Email</label><input id="un" type="email" required autocapitalize="off" autocomplete="username" placeholder="Your administrator email"></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" required autocomplete="current-password"></div>
-      <button class="btn" type="submit">Sign in to admin</button>
-    </form></div></main>`;
-  $('#un')?.focus();
+      <button class="btn" type="submit">Sign in</button></form>
+    <a class="login-back" href="viewer.html">← Back to sermon library</a></div></main>`;
 }
 
 /* ---------- Router ---------- */
@@ -882,23 +877,76 @@ function parseRoute() {
   const [path, qs] = location.hash.replace(/^#\/?/, '').split('?');
   const [name = '', id] = path.split('/');
   const known = ['', 'archive', 'sermon', 'new', 'edit', 'members', 'bible'];
-  return { name: known.includes(name) ? name : '', id, q: new URLSearchParams(qs || '').get('q') || '' };
+  const params = new URLSearchParams(qs || '');
+  return { name: known.includes(name) ? name : '', id, q: (params.get('q') || '').slice(0,200), page: Math.max(0,Math.floor(Number(params.get('page')) || 0)) };
 }
 
-async function render() {
-  if (ADMIN_PAGE && !isAdmin()) return viewLogin();
+let renderVersion = 0;
+async function render(preserveScroll = false) {
+  const version = ++renderVersion;
+  const scroll = window.scrollY;
+  if (ADMIN_PAGE && !isAdmin()) { window.ChurchAPI.setLive(false); return viewLogin(); }
   route = parseRoute();
   document.body.className = isAdmin() ? 'admin' : 'viewer';
   if (!isAdmin() && ['new', 'edit', 'members'].includes(route.name)) { location.hash = '#/'; return; }
   const views = { '': viewDashboard, archive: viewArchive, sermon: viewSermon, new: viewForm, edit: viewForm, members: viewMembers, bible: viewBible };
   try {
-    app.innerHTML = await views[route.name]();
-    window.scrollTo(0, 0);
+    await window.ChurchAPI.setLive(['','archive','sermon'].includes(route.name), route.name === 'sermon' ? route.id : null);
+    if (version !== renderVersion) return;
+    const html = await views[route.name]();
+    if (version !== renderVersion) return;
+    app.innerHTML = html;
+    window.scrollTo(0, preserveScroll ? scroll : 0);
   } catch (e) {
+    if (version !== renderVersion) return;
     app.innerHTML = shell(`<div class="card empty"><h2>This page could not be shown</h2><p>${esc(e.message)}</p><a class="btn" href="#/">Back to home</a></div>`);
   }
 }
 window.addEventListener('hashchange', () => { closeModal(); render(); });
+
+// Patch only changed passage cards, preserving the reader's position and inputs.
+function scheduleLiveUpdate(change) {
+  if (!['','archive','sermon'].includes(route.name)) return;
+  if (!change.reset && !change.metadata && (route.name === '' || (route.name === 'archive' && !route.q)
+    || (route.name === 'sermon' && !change.sermonIds?.includes(Number(route.id))))) return;
+  pendingLiveChange = { ...change, reset: change.reset || pendingLiveChange?.reset, metadata: change.metadata || pendingLiveChange?.metadata };
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(async () => {
+    if (document.hidden || !$('#modal').hidden || document.activeElement === $('#q')) return;
+    const update = pendingLiveChange;
+    pendingLiveChange = null;
+    if (!update) return;
+    if (route.name !== 'sermon' || update.reset || update.metadata) { await render(true); return; }
+    const id = route.id;
+    try {
+      const s = await api('/sermons/' + id);
+      if (route.name !== 'sermon' || route.id !== id || !$('#passages-content')) return;
+      const before = new Map((current?.verses || []).map(v => [v.id,JSON.stringify(v)]));
+      const container = $('#passages-content');
+      if (!s.verses.length) container.innerHTML = '<div class="empty card">No scripture passages added yet.</div>';
+      else {
+        if (!$('.passage-list',container)) container.innerHTML = '<div class="passage-list"></div>';
+        const list = $('.passage-list',container), ids = new Set(s.verses.map(v=>String(v.id)));
+        $$('[data-verse-id]',list).forEach(node => { if (!ids.has(node.dataset.verseId)) node.remove(); });
+        s.verses.forEach((v,i) => {
+          let node = $(`[data-verse-id="${v.id}"]`,list);
+          if (!node || before.get(v.id) !== JSON.stringify(v) || isAdmin()) {
+            const template = document.createElement('template');
+            template.innerHTML = passageCard(v,i,s.verses.length,isAdmin());
+            const replacement = template.content.firstElementChild;
+            if (node) node.replaceWith(replacement);
+            node = replacement;
+          }
+          if (list.children[i] !== node) list.insertBefore(node,list.children[i] || null);
+        });
+      }
+      $('#scripture-count').textContent = s.verses.length;
+      current = s;
+    } catch { await render(true); }
+  },150);
+}
+window.ChurchAPI.watchLibrary(scheduleLiveUpdate);
+document.addEventListener('focusout', () => { if (pendingLiveChange) scheduleLiveUpdate(pendingLiveChange); });
 
 /* ---------- Global Action Handlers ---------- */
 const showErr = msg => { const e = $('#err'); if (e) { e.innerHTML = msg ? `<div class="err" role="alert">${esc(msg)}</div>` : ''; if (msg) e.scrollIntoView({ block: 'nearest' }); } else toast(msg, true); };
@@ -911,6 +959,7 @@ const confirmBox = (title, msg, okLabel) => new Promise(res => {
 
 const ACTIONS = {
   close: closeModal,
+  retry() { boot(); },
   async logout() { try { await api('/logout', 'POST'); me = null; closeModal(); location.hash = ''; render(); } catch (e) { toast(e.message, true); } },
   async export() {
     try {
@@ -1072,6 +1121,9 @@ const ACTIONS = {
     await changeChapter(1);
   },
   'm-toggle-verse'(el) {
+    // A text-selection gesture should not also toggle and redraw the verse.
+    const selection = window.getSelection();
+    if (selection?.toString().trim() && $('#m-verse-flow')?.contains(selection.anchorNode)) return;
     const v = Number(el.dataset.v);
     if (modalState.selectedVerses.has(v)) {
       modalState.selectedVerses.delete(v);
@@ -1237,6 +1289,7 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', e => {
+  $$('.more-menu[open]').forEach(menu => { if (!menu.contains(e.target)) menu.open = false; });
   const a = e.target.closest('[data-act]');
   if (a && ACTIONS[a.dataset.act]) {
     e.preventDefault();
@@ -1247,7 +1300,10 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !$('#modal')?.hidden) closeModal();
+  if (e.key === 'Escape') {
+    if (!$('#modal')?.hidden) closeModal();
+    $$('.more-menu[open]').forEach(menu => { menu.open = false; });
+  }
 });
 
 /* ---------- Forms ---------- */
@@ -1327,7 +1383,7 @@ document.addEventListener('submit', async e => {
   }
 });
 
-let searchDebounce;
+let searchDebounce, searchVersion = 0;
 // Bible Library: switch translation
 document.addEventListener('change', async e => {
   if (e.target.id !== 'b-tr-select') return;
@@ -1347,16 +1403,21 @@ document.addEventListener('input', e => {
     return;
   }
   if (e.target.id !== 'q' || route.name !== 'archive') return;
+  const version = ++searchVersion;
+  const searchInput = e.target;
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(async () => {
     const q = e.target.value.trim();
     try {
-      const list = await api('/sermons?q=' + encodeURIComponent(q));
-      $('#results').innerHTML = archiveList(list, q);
-      $('#count').textContent = `${list.length} sermon${list.length === 1 ? '' : 's'}`;
+      const data = await api('/sermons?q=' + encodeURIComponent(q) + '&page=0');
+      if (version !== searchVersion || route.name !== 'archive' || $('#q') !== searchInput) return;
+      $('#results').innerHTML = archiveList(data.items, q);
+      $('#count').textContent = archiveCount(data);
+      $('#archive-pager').innerHTML = archivePager(data,q);
+      route.q = q; route.page = 0;
       history.replaceState(null, '', '#/archive' + (q ? '?q=' + encodeURIComponent(q) : ''));
     } catch (err) {
-      toast(err.message, true);
+      if (version === searchVersion && route.name === 'archive' && $('#q') === searchInput) toast(err.message, true);
     }
   }, 250);
 });
@@ -1371,7 +1432,7 @@ async function boot() {
     if (!bibleTranslations.some(t => t.id === bibleViewState.tr)) bibleViewState.tr = 'KJV';
     if (!bibleTranslations.some(t => t.id === modalState.tr)) modalState.tr = 'KJV';
   } catch (e) {
-    app.innerHTML = `<main class="login"><div class="login-card"><h1>Could not connect</h1><p>${esc(e.message)}</p><button class="btn" onclick="location.reload()">Try again</button><a href="viewer.html">Public library</a></div></main>`;
+    app.innerHTML = `<main class="login"><div class="login-card"><h1>Could not connect</h1><p>${esc(e.message)}</p><button class="btn" data-act="retry">Try again</button><a href="viewer.html">Public library</a></div></main>`;
     return;
   }
   await render();

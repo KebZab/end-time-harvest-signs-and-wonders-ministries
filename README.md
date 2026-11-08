@@ -1,43 +1,72 @@
-# Sermon Library
+# End Time Harvest Sermon Library
 
-End Time Harvest Signs & Wonders Ministries, Inc.
+A static HTML website backed by Supabase. Viewers can read sermons and scripture without an account. Administrators sign in to manage sermons, passages, highlights, and notes.
 
-## Open the website
+## Deploy to Vercel
 
-Double-click **index.html** or **viewer.html** to view the public sermon library. Open **admin.html** to sign in and manage sermons.
+1. Commit and push the repository to GitHub.
+2. Import the repository into Vercel as a new project.
+3. Leave **Root Directory** at the repository root, where `vercel.json` is located.
+4. Deploy. The checked-in configuration selects **Other**, skips installation and building, and publishes only **public/**.
 
-No Python, Node.js, launcher, terminal command, installation, or build is required to use the website. Keep the `static/` folder beside the HTML files. You can also upload these three HTML files and the entire `static/` folder to any static HTTPS host.
+If the dashboard already contains manual overrides, use these values:
 
-Internet access is required for Supabase. The full 66-book KJV is bundled locally. Other translations load on demand from the existing [Bible JSON source](https://github.com/thiagobodruk/bible); they retain their publishers' licenses.
+| Setting | Value |
+| --- | --- |
+| Framework Preset | Other |
+| Root Directory | Repository root |
+| Install Command | Empty |
+| Build Command | Empty |
+| Output Directory | public |
 
-## Public and admin access
+The live public library opens at `/`. The alternate viewer entry is `/viewer.html`; administrators use `/admin.html`. Missing URLs show a custom 404 page. Navigation uses hashes, so no catch-all rewrite is needed.
 
-Viewers can read and search sermons, passages, highlights, notes, and the Bible Library without an account. Only `admin.html` restores the admin session and displays editing controls. Supabase row-level security enforces admin-only writes.
+The public interface does not display an admin login link. Administrators should bookmark `/admin.html`.
 
-The initial admin login is `admin@endtimeharvest.local`. The generated password was provided in the setup conversation and is not stored in the repository. Change it under **Account** after signing in. This is a login identifier, not a mailbox; replace it with an email you own in Supabase Authentication for email recovery.
+No runtime server, package installation, environment variables, or build step is required. `vercel.json` also configures browser security headers and cache revalidation for application updates. Admin pages are marked not to appear in search results; Supabase authentication and database policies enforce editing access.
 
-**Access & backup** downloads sermons and recorded scripture passages as JSON, including notes and highlights. Authentication credentials are never included.
+## Files
 
-## Supabase
+```text
+public/
+  index.html
+  viewer.html
+  admin.html
+  404.html
+  robots.txt
+  static/             Browser scripts, styles, logo, and bundled KJV
+vercel.json           Deployment configuration
+supabase_schema.sql   Database setup; not published
+```
 
-The connected project is `fokbrfhqryneszoweapn`. `static/config.js` contains its URL and public publishable key. Never add a service-role or secret key to the frontend.
+Open `public/index.html` locally to view the website. Keep the entire `public` directory together. Internet access is required for Supabase; translations other than the bundled KJV load on demand from the [Bible JSON source](https://github.com/thiagobodruk/bible) and retain their respective publishers' licenses.
 
-`supabase_schema.sql` contains the schema and access policies already applied to the project. It allows public reads, restricts writes to active admins, protects profiles, and provides atomic sermon creation and passage reordering. User-supplied metadata and first signup cannot grant admin access.
+## Supabase and administrators
 
-To add an admin, the project owner creates a user in **Supabase Dashboard → Authentication → Users**, then grants access through the SQL editor:
+The project `fokbrfhqryneszoweapn` is already connected. `public/static/config.js` contains its public URL and publishable key. Database row-level security permits public reads of sermons and passages and restricts writes to active administrators. Never place a service-role key, secret key, or administrator password in public files.
+
+The administrator account created during setup remains available. Its password is not stored in this repository. Use **Settings → Change password** to update it. The login address `admin@endtimeharvest.local` is not a mailbox; replace it with an address you own in Supabase Authentication if you need email delivery. If email invitations or password-recovery links are enabled later, configure Supabase's Site URL and allowed redirect URLs for your production domain.
+
+To add another administrator, the project owner creates a user in **Supabase Dashboard → Authentication → Users**, then grants access in the SQL editor:
 
 ```sql
 update public.profiles set role = 'ADMIN', active = true
 where id = (select id from auth.users where email = 'admin@example.com');
 ```
 
-Set the profile's `active` field to `false` to revoke editing access.
+Set a profile's `active` field to `false` to revoke editing access. **Settings → Download backup** exports sermons, passages, notes, and highlights without authentication credentials.
 
-## Files and optional developer checks
+The locally bundled Supabase browser client is version 2.119.0. Its license notices are included in the vendor script. No test suite, mock records, npm manifest, or development dependency is required or included in the deployment.
 
-- `index.html` / `viewer.html`: public entry pages.
-- `admin.html`: admin sign in and management.
-- `static/`: styles, logo, JavaScript, and bundled KJV.
-- `static/vendor/supabase.js`: locally bundled Supabase JavaScript client, version 2.119.0.
+## Database traffic and live updates
 
-The optional `package.json`, lockfile, and `tests/` are for development checks only (`npm ci` then `npm test`). They are not needed to open or host the website. There is no start or build command.
+- Home requests only the six latest sermon summaries in one query; it does not download verse bodies or run total-count queries.
+- Archive search runs in Postgres and returns 25 summaries at a time. Full scripture text is downloaded only when a sermon is opened or an admin requests an export.
+- Public content is cached in memory and, when available, browser storage for five minutes. Concurrent duplicate reads share one request. The cache is bounded to 30 entries and about 1 MB of stored JSON.
+- A small `library_state` row supplies live change notices. One statement produces one notice, including when several verses are saved together. Notices contain IDs, not scripture bodies.
+- An open sermon fetches only affected verse rows; a reorder fetches IDs and positions only. The viewer updates passage cards without reloading or moving the reader's scroll position.
+- Connections pause while the tab is hidden or the Bible reader/settings/forms are open. Reconnecting checks the small revision value to recover changes missed while disconnected. There is no periodic database polling.
+
+`supabase_optimizations.sql` has already been applied to the connected project. For a new database, apply `supabase_schema.sql` first, then `supabase_optimizations.sql`. Both setup files remain outside the published website. RLS still controls every database write; hiding the admin link does not change authentication.
+
+Realtime connections and change messages still use Supabase quota. The design reduces transferred data and repeated queries; it does not make live updates free.

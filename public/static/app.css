@@ -1,0 +1,385 @@
+/* Original ministry colors with a simplified, responsive layout. */
+:root {
+  --black: #000;
+  --gold: #f2b51b;
+  --gold-soft: #ffe39a;
+  --gold-deep: #a97a08;
+  --brown: #854b25;
+  --brown-dark: #3b200f;
+  --ivory: #fbf6e9;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: Georgia, "Times New Roman", serif;
+}
+body {
+  --bg: var(--ivory); --surface: #fff; --text: #251a10; --muted: #6c5a47;
+  --line: #e6dbc3; --accent: var(--brown); --link: #1f3a6b; --input: #fff;
+  --head-bg: #000; --head-text: #fbf1d6;
+  --hero: #000; --hero-text: #fbf1d6;
+  --surface-soft: #fbf6e9; --hover: #f5ecd9; --control-border: #cdbd9c;
+  --button-text: #fff; --button-hover: #6a3a1b;
+  --danger: #a32e1c; --danger-bg: #fde9e4; --danger-line: #e3b8ae;
+}
+body.admin, body.viewer {
+  --bg: #150e09; --surface: #21160e; --text: #f4ead6; --muted: #bba88d;
+  --line: #43301f; --accent: var(--gold); --link: var(--gold-soft); --input: #150e09;
+  --head-bg: var(--brown-dark); --head-text: #fbf1d6;
+  --hero: linear-gradient(135deg, #5a3016, #2a170a 70%); --hero-text: #fff3d6;
+  --surface-soft: #2a1c11; --hover: #392616; --control-border: #5b4526;
+  --button-text: #1b1002; --button-hover: var(--gold-soft);
+  --danger: #f08a76; --danger-bg: #4a1710; --danger-line: #9c4434;
+}
+body.viewer {
+  --head-bg: #000;
+  --hero: #000;
+  --hero-text: #fbf1d6;
+}
+body.gate {
+  --bg: #000; --surface: #0e0b08; --text: #fbf1d6; --muted: #c9b790;
+  --line: #3b2a18; --input: #000; --accent: var(--gold); --link: var(--gold-soft);
+  --surface-soft: #1b120a; --hover: #2a1a0a; --control-border: #5b4526;
+  --button-text: #1b1002; --button-hover: var(--gold-soft);
+  --danger: #ffd9d2; --danger-bg: #4a1710; --danger-line: #9c4434;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; scroll-padding-top: 1rem; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 1rem/1.6 var(--sans); min-height: 100vh; }
+button, input, select, textarea { font: inherit; }
+button, a, summary { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button, summary { cursor: pointer; }
+button:disabled { opacity: .55; cursor: wait; }
+a { color: var(--link); text-underline-offset: .2em; }
+img { max-width: 100%; }
+h1, h2, h3, h4, p { margin: 0; }
+h1, h2, h3, h4 { line-height: 1.25; overflow-wrap: anywhere; }
+h1 { font-size: clamp(1.65rem, 3vw, 2.15rem); font-weight: 650; letter-spacing: -.035em; }
+h2 { font-size: 1.15rem; font-weight: 650; letter-spacing: -.015em; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin-bottom: .75rem; overflow-wrap: anywhere; }
+p:last-child { margin-bottom: 0; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.icon { flex-shrink: 0; vertical-align: middle; }
+.muted, .hint { color: var(--muted); }
+.hint { font-size: .85rem; font-weight: 400; }
+.sr-only, .skip:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skip:focus { position: fixed; z-index: 100; top: .5rem; left: .5rem; padding: .7rem 1rem; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; }
+
+/* Header and navigation */
+.top { background: var(--head-bg); color: var(--head-text); border-bottom: 1px solid var(--gold); }
+.top-in, nav.main > div { max-width: 1000px; margin: auto; padding-inline: 1.5rem; }
+.top-in { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: flex; align-items: center; gap: .7rem; min-width: 0; color: var(--head-text); text-decoration: none; }
+.brand img { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; }
+.brand > span { min-width: 0; }
+.brand .name { display: block; font-size: 1rem; font-weight: 650; line-height: 1.3; letter-spacing: -.02em; }
+.brand-sub { display: block; font-size: .73rem; color: var(--gold-soft); line-height: 1.5; }
+.who { flex-shrink: 0; }
+.linkbtn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .5rem .7rem; border: 0; background: none; color: var(--gold-soft); font-size: .85rem; text-decoration: none; }
+.linkbtn:hover { color: #fff; }
+.adminbar { display: inline-block; color: #1b1002; background: var(--gold); border-radius: 6px; padding: .2rem .65rem; font-size: .75rem; font-weight: 600; }
+nav.main > div { display: flex; gap: 1.75rem; }
+nav.main a { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .75rem .15rem; min-height: 48px; border-bottom: 2px solid transparent; color: var(--head-text); font-size: .9rem; font-weight: 500; text-decoration: none; }
+nav.main a:hover, nav.main a[aria-current] { color: var(--gold); }
+nav.main a[aria-current] { border-bottom-color: var(--gold); }
+nav.main .icon { width: 18px; height: 18px; }
+main { max-width: 1000px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; min-width: 0; }
+main:focus { outline: none; }
+footer { max-width: 1000px; margin: auto; padding: 1rem 1.5rem 2rem; text-align: center; color: var(--muted); font-size: .75rem; }
+footer a { display: block; margin-top: .6rem; }
+
+.hero .sermon-meta { color: #d9c79b; }
+.hero .btn { background: var(--gold); border-color: var(--gold); color: #1b1002; }
+.hero .btn:hover { background: var(--gold-soft); border-color: var(--gold-soft); }
+.s-head { background: var(--hero); color: var(--hero-text); border: 1px solid var(--gold); border-radius: 10px; padding: 1.5rem; }
+.s-head .sermon-meta { color: #d9c79b; }
+.s-head .btn.ghost { background: transparent; color: var(--gold-soft); border-color: var(--gold-deep); }
+body:not(.admin):not(.viewer):not(.gate) :focus-visible { outline-color: #1f3a6b; }
+
+/* Forms and controls */
+.btn { display: inline-flex; justify-content: center; align-items: center; gap: .5rem; min-height: 44px; max-width: 100%; padding: .65rem 1rem; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: var(--button-text); font-size: .9rem; font-weight: 600; line-height: 1.4; text-align: center; text-decoration: none; }
+.btn:hover { background: var(--button-hover); border-color: var(--button-hover); }
+.btn.ghost { background: var(--surface); border-color: var(--line); color: var(--text); }
+.btn.ghost:hover { background: var(--hover); border-color: var(--control-border); }
+.btn.small { padding: .45rem .75rem; min-height: 44px; font-size: .85rem; }
+.btn.danger { background: transparent; color: var(--danger); border-color: var(--danger-line); }
+.btn.danger:hover { background: var(--danger-bg); }
+.btn .icon { width: 18px; height: 18px; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; }
+.field { margin-bottom: 1.25rem; }
+label { display: block; font-size: .9rem; font-weight: 600; margin-bottom: .4rem; }
+input, select, textarea { display: block; width: 100%; min-width: 0; min-height: 46px; padding: .65rem .8rem; border: 1px solid var(--control-border); border-radius: 8px; background: var(--input); color: var(--text); font-size: 16px; line-height: 1.5; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input[readonly] { background: var(--surface-soft); }
+textarea { resize: vertical; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
+.err { border: 1px solid var(--danger-line); border-radius: 8px; padding: .75rem; color: var(--danger); background: var(--danger-bg); margin-bottom: 1rem; font-size: .9rem; }
+.search, .bible-search-row { display: flex; align-items: stretch; gap: .6rem; }
+.search { margin: 1.5rem 0; }
+.search input, .bible-search-row input { flex: 1; width: 0; min-width: 0; }
+.search .btn, .bible-search-row .btn { flex-shrink: 0; }
+.archive-search { margin-bottom: 1rem; }
+.results-count { color: var(--muted); font-size: .85rem; margin: 1rem 0 .7rem; }
+.archive-pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
+
+/* Reading and sermon lists */
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.75rem; }
+.page-heading p { margin: .45rem 0 0; font-size: .95rem; }
+.page-heading > .btn { flex-shrink: 0; }
+.hero { padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--gold); border-radius: 12px; background: var(--hero); color: var(--hero-text); }
+.kicker { font-size: .75rem; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--gold); margin-bottom: .8rem; }
+.hero h2 { max-width: 26ch; font: 500 clamp(1.8rem, 4vw, 2.5rem)/1.22 var(--serif); letter-spacing: -.025em; margin-bottom: .8rem; }
+.sermon-meta { color: var(--muted); font-size: .9rem; }
+.sermon-meta span { margin-inline: .25rem; }
+.hero .btn { margin-top: .8rem; }
+.sec-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin: 2rem 0 1rem; }
+.sec-head a { font-size: .85rem; }
+.sec-head h2 .muted { margin-left: .25rem; font-size: .85rem; font-weight: 400; }
+.card { border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem; background: var(--surface); }
+.card > h1, .card > h2 { margin-bottom: 1.25rem; }
+.card + .card { margin-top: 1rem; }
+.empty { text-align: center; padding: 2rem 1rem; color: var(--muted); }
+.empty-state { text-align: center; padding: 3.5rem 1.5rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.empty-state > .icon { width: 36px; height: 36px; margin-bottom: 1rem; color: var(--accent); }
+.empty-state h2 { font-size: 1.2rem; margin-bottom: .65rem; }
+.empty-state p { color: var(--muted); font-size: .9rem; max-width: 35ch; margin: 0 auto 1.5rem; }
+.text-link { display: inline-block; margin-top: 1.25rem; padding-block: .5rem; font-size: .9rem; }
+.viewer-home .hero { border-color: var(--gold-deep); }
+.viewer-home .hero h2 { max-width: 28ch; }
+.viewer-home .hero .btn { gap: 1rem; }
+.viewer-search { position: relative; padding: .4rem; gap: .35rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.viewer-search > .icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.viewer-search input { padding-left: 2.5rem; border-color: transparent; background: transparent; }
+.viewer-search .btn { background: var(--surface-soft); border-color: transparent; }
+.viewer-explore { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+.browse-card { display: flex; align-items: center; gap: .9rem; min-width: 0; min-height: 94px; padding: 1.1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; color: var(--text); text-decoration: none; transition: border-color .15s, background .15s; }
+.browse-card:hover { border-color: var(--gold-deep); background: var(--surface-soft); }
+.browse-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 9px; color: var(--gold); background: var(--surface-soft); }
+.browse-copy { display: grid; gap: .15rem; flex: 1; min-width: 0; }
+.browse-copy strong { font-size: .95rem; font-weight: 600; }
+.browse-copy > span { font-size: .8rem; color: var(--muted); }
+.browse-card > .icon { width: 18px; color: var(--gold); }
+body.viewer .rows { border-color: var(--line); }
+body.viewer .row { min-height: 88px; }
+body.viewer .row > .icon { color: var(--gold); }
+.rows { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.row { display: grid; grid-template-columns: 52px minmax(0, 1fr) 20px; gap: 1rem; align-items: center; padding: 1.1rem 1.25rem; color: var(--text); text-decoration: none; }
+.row + .row { border-top: 1px solid var(--line); }
+.row:hover { background: var(--hover); }
+.row:first-child { border-radius: 10px 10px 0 0; }
+.row:last-child { border-radius: 0 0 10px 10px; }
+.row .date { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; background: var(--surface-soft); border-radius: 7px; line-height: 1.2; }
+.row .date b { font-size: 1.3rem; font-weight: 600; }
+.row .date span { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+.row h3 { margin-bottom: .3rem; }
+.row p { font-size: .83rem; color: var(--muted); margin: 0; }
+.row > .icon { color: var(--muted); }
+.back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: .75rem; font-size: .9rem; text-decoration: none; }
+.s-head { padding: 1.5rem; }
+.s-head h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.9rem, 4vw, 2.7rem); max-width: 28ch; margin-bottom: .8rem; }
+.s-head .desc { white-space: pre-wrap; max-width: 65ch; margin-top: 1.2rem; line-height: 1.8; }
+.s-head .actions { margin-top: 1.2rem; }
+.passage-list { display: grid; gap: 1rem; }
+.passage-card { min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 1.4rem; }
+.p-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .9rem; }
+.p-ref { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; min-width: 0; }
+.p-ref h3 { color: var(--accent); font-size: 1rem; }
+.p-tr-badge { display: inline-block; border-radius: 4px; padding: .1rem .4rem; background: var(--surface-soft); color: var(--muted); font: 500 .68rem/1.5 var(--sans); }
+.p-actions { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
+.p-body { font-family: var(--serif); font-size: 1.18rem; line-height: 1.85; overflow-wrap: anywhere; }
+.p-body sup, .b-vnum { color: var(--muted); font: 600 .7rem var(--sans); margin-right: .2rem; }
+.p-note { padding: .9rem 1rem; margin-top: 1rem; background: var(--surface-soft); border-radius: 6px; overflow-wrap: anywhere; }
+.p-note b { display: block; margin-bottom: .2rem; font-size: .75rem; font-weight: 600; color: var(--muted); }
+.p-note p { font-size: .9rem; white-space: pre-wrap; }
+mark.hl { padding: .08em .15em; border-radius: 3px; color: #292c28; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+mark.hl-yellow { background: #fef08a; }
+mark.hl-green { background: #bbf7d0; }
+mark.hl-blue { background: #bfdbfe; }
+mark.hl-pink { background: #fbcfe8; }
+mark.hl-orange { background: #fed7aa; }
+.staging-area { border: 1px solid var(--line); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; background: var(--hover); }
+.staged-card { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+.staged-card-head { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin-bottom: .75rem; }
+.staged-card-head h4 { font-size: 1rem; }
+.settings-card { max-width: 680px; }
+.settings-card > h2 { margin-bottom: .5rem; }
+.settings-card > .actions, .settings-card > .btn { margin-top: .5rem; }
+
+/* Secondary actions stay out of the reading area. */
+.more-menu { position: relative; flex-shrink: 0; }
+.more-menu summary { list-style: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.more-menu summary::-webkit-details-marker { display: none; }
+.more-menu[open] summary, .more-menu summary:hover { background: var(--hover); }
+.menu-items { position: absolute; z-index: 12; right: 0; top: calc(100% + .35rem); width: 190px; max-width: calc(100vw - 32px); padding: .3rem; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 24px #252b211a; border-radius: 9px; }
+.s-head .menu-items { left: 0; right: auto; width: 160px; }
+.menu-items button { display: block; width: 100%; min-height: 44px; text-align: left; padding: .65rem .75rem; font-size: .85rem; border: 0; border-radius: 5px; background: none; color: var(--text); }
+.menu-items button:hover { background: var(--surface-soft); }
+.menu-items .danger-text { color: var(--danger); }
+
+/* Dialogs and feedback */
+#modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background: #161b225c; overflow-y: auto; overscroll-behavior: contain; }
+#modal[hidden] { display: none; }
+.dialog { width: 100%; max-width: 620px; max-height: 90dvh; padding: 1.5rem; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 60px #20251b26; }
+.dialog > h2 { margin-bottom: .75rem; }
+.dialog > .actions { margin-top: 1rem; }
+.dialog-wide { max-width: 820px; }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+.dialog-head h2 { font-size: 1.15rem; }
+.dialog-head .btn { flex-shrink: 0; }
+#toast { position: fixed; z-index: 100; left: 50%; bottom: 1.5rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); padding: .8rem 1.1rem; border-radius: 8px; background: var(--gold); color: #1b1002; font-size: .9rem; box-shadow: 0 4px 20px #0002; opacity: 0; pointer-events: none; transition: opacity .15s; overflow-wrap: anywhere; }
+#toast.show { opacity: 1; }
+#toast.bad { background: #c0442f; color: #fff; }
+
+/* Bible reader: flexible toolbar, independently scrolling text, visible actions. */
+.lib { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.bible-top-nav { display: flex; align-items: center; gap: .5rem; padding: .75rem; background: var(--surface); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.lib-bar { border-radius: 10px 10px 0 0; position: sticky; top: 0; z-index: 5; }
+.toolbar-spacer { flex: 1; }
+.bible-arrow-btn, .bible-x { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 1.3rem; line-height: 1; }
+.bible-x { border: 0; font-size: 1rem; }
+.bible-nav-btn { min-width: 0; min-height: 44px; padding: .55rem .8rem; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--surface-soft); font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bible-nav-btn.active, .bible-arrow-btn.active { background: var(--gold); border-color: var(--gold); color: #1b1002; }
+.bible-tr { width: 88px; min-width: 0; font-size: 16px; flex-shrink: 0; padding: .5rem; }
+.bible-nav-title { min-width: 0; overflow-wrap: anywhere; }
+.lib-reader { max-width: 760px; margin: auto; padding: 2rem clamp(1rem, 4vw, 3rem); }
+.lib-panel { padding: 1.25rem; display: flex; flex-direction: column; gap: .65rem; }
+.bible-title { font-family: var(--serif); font-size: 1.9rem; font-weight: 500; text-align: center; margin: 0 0 .4rem; }
+.bible-tr-name { color: var(--muted); text-align: center; font-size: .8rem; margin-bottom: 1.75rem; }
+.bible-text-flow { font: 1.2rem/1.95 var(--serif); overflow-wrap: anywhere; user-select: text; }
+.b-verse { display: inline; border-radius: 3px; cursor: pointer; padding-block: .15rem; }
+.b-verse:hover { background: var(--hover); }
+.b-verse.selected, .b-verse-ro.flash { background: rgba(242,181,27,.22); }
+.b-verse.selected { box-shadow: 0 2px var(--gold); }
+.b-vnum { user-select: none; }
+.lib-pager { display: flex; gap: .75rem; justify-content: space-between; margin-top: 2rem; }
+.lib-pager .btn { min-width: 110px; }
+.dialog.dialog-app { max-width: 780px; padding: 0; overflow: hidden; }
+.bible-app-modal { height: min(88dvh, 880px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.bible-reader-canvas, .bible-panel, .bible-picker-sheet { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1.5rem; }
+.bible-reader-canvas .bible-title { margin-bottom: 1.25rem; }
+.bible-panel { display: flex; flex-direction: column; gap: .75rem; }
+.is-picking > .bible-reader-canvas, .is-picking > .bible-panel, .is-picking > .bible-floating-bar { display: none; }
+.bible-floating-bar { flex-shrink: 0; padding: .75rem 1rem; display: flex; flex-direction: column; gap: .5rem; background: var(--surface); border-top: 1px solid var(--line); }
+.bible-bar-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+.bible-bar-row > .btn { flex: 1; }
+.bible-selection-ref { min-width: 0; font-size: .9rem; overflow-wrap: anywhere; }
+.bible-selection-ref small { color: var(--muted); font-weight: 400; }
+.bible-palette { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.b-swatch { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; border: 6px solid var(--surface); padding: 0; box-shadow: inset 0 0 0 1px #0002; }
+.b-swatch:hover { border-color: var(--hover); }
+.swatch-yellow { background: #facc15; }
+.swatch-green { background: #4ade80; }
+.swatch-blue { background: #60a5fa; }
+.swatch-pink { background: #f472b6; }
+.swatch-orange { background: #fb923c; }
+.swatch-none { background: var(--surface-soft); color: var(--muted); font-size: 1.1rem; }
+.bible-note-input { min-height: 44px; }
+.bible-group { color: var(--muted); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin: 1.25rem 0 .65rem; }
+.bible-books-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .5rem; }
+.bible-book-card { display: block; min-width: 0; min-height: 48px; padding: .65rem .75rem; text-align: left; font-size: .9rem; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text); }
+.bible-book-card:hover, .bible-book-card.active, .bible-ch-btn.active { background: var(--gold); border-color: var(--gold); color: #1b1002; }
+.bible-chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: .5rem; }
+.bible-ch-btn { min-height: 48px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text); }
+.bible-result { display: grid; gap: .4rem; padding: 1rem; text-align: left; color: var(--text); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow-wrap: anywhere; }
+.bible-result b { color: var(--accent); font-size: .9rem; }
+.bible-result span { font-family: var(--serif); line-height: 1.7; }
+
+/* Simple sign-in */
+.login { min-height: 100dvh; display: grid; place-items: center; padding: 2rem 1.25rem; }
+.login-card { width: 100%; max-width: 400px; padding: 2rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.login-brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; color: var(--text); font-size: .9rem; font-weight: 600; margin-bottom: 2rem; }
+.login-brand img { border-radius: 50%; width: 48px; height: 48px; }
+.login-card h1 { font-size: 1.65rem; margin-bottom: .5rem; }
+.login-card > .muted { font-size: .9rem; }
+.login-card form { margin-top: 1.5rem; }
+.login-card .btn { width: 100%; }
+.login-back { display: block; text-align: center; margin-top: 1.25rem; padding-block: .5rem; font-size: .85rem; }
+
+/* Phones: four or fewer tabs, readable text, and 44px touch targets. */
+@media (max-width: 640px) {
+  .top-in { min-height: 76px; padding: .75rem 1rem; gap: .5rem; }
+  .brand { gap: .55rem; }
+  .brand img { width: 36px; height: 36px; }
+  .brand .name { font-size: .9rem; }
+  .brand-sub { font-size: .65rem; }
+  nav.main { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--head-bg); border-top: 1px solid var(--gold); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  nav.main > div { padding: 0 .5rem; gap: 0; }
+  nav.main a { flex: 1; min-width: 0; flex-direction: column; gap: .2rem; padding: .6rem .2rem; min-height: 64px; border: 0; font-size: .75rem; }
+  nav.main a[aria-current] { background: rgba(242,181,27,.12); }
+  nav.main .icon { width: 21px; height: 21px; }
+  main { padding: 1.5rem 1rem 2rem; }
+  footer { padding: 1rem 1.25rem calc(6rem + env(safe-area-inset-bottom, 0px)); font-size: .7rem; }
+  .page-heading { margin-bottom: 1.25rem; gap: .65rem; flex-wrap: wrap; }
+  .page-heading > .btn { padding-inline: .8rem; }
+  .page-heading p { font-size: .85rem; }
+  .hero { padding: 1.5rem 1.25rem; }
+  .hero h2 { font-size: 1.85rem; }
+  .sermon-meta { font-size: .85rem; line-height: 1.7; }
+  .search { gap: .4rem; }
+  .search .btn, .bible-search-row .btn { padding-inline: .75rem; }
+  .search input, .archive-search input { font-size: 16px; padding-inline: .65rem; }
+  .viewer-search input { padding-left: 2rem; }
+  .viewer-search > .icon { left: .8rem; width: 18px; }
+  .viewer-explore { grid-template-columns: minmax(0, 1fr); gap: .65rem; }
+  .browse-card { min-height: 80px; padding: .9rem 1rem; }
+  .card { padding: 1.15rem; }
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  .row { grid-template-columns: 44px minmax(0, 1fr) 18px; gap: .75rem; padding: 1rem; }
+  .row h3 { font-size: 1rem; }
+  .row p { font-size: .8rem; }
+  .row .date { min-height: 52px; }
+  .s-head { padding-top: .5rem; }
+  .s-head .desc { font-size: .95rem; }
+  .passage-card { padding: 1rem; }
+  .p-head { flex-wrap: wrap; gap: .5rem; }
+  .p-ref { flex: 1 1 140px; }
+  .p-actions { margin-left: auto; }
+  .p-body { font-size: 1.14rem; line-height: 1.85; }
+  .staging-area { padding: .85rem; }
+  .staged-card-head { align-items: start; flex-wrap: wrap; }
+  #modal { padding: .5rem; align-items: flex-end; }
+  .dialog { max-height: 94dvh; padding: 1.25rem 1rem calc(1.25rem + env(safe-area-inset-bottom, 0px)); border-radius: 12px; }
+  .dialog-head { gap: .5rem; align-items: start; }
+  .dialog-head h2 { padding-top: .55rem; }
+  .dialog .actions > .btn { flex: 1; }
+  #modal.modal-app { padding: 0; align-items: stretch; }
+  .dialog.dialog-app { max-width: none; max-height: none; height: 100dvh; border: 0; border-radius: 0; padding: 0; }
+  .bible-app-modal { height: 100dvh; }
+  .bible-top-nav { display: grid; grid-template-columns: 44px repeat(3, minmax(0, 1fr)) 44px 44px; gap: .35rem; padding: .65rem .75rem; }
+  .bible-top-nav > .toolbar-spacer { display: none; }
+  .bible-top-nav > .bible-arrow-btn:first-child { grid-column: 1; }
+  .bible-top-nav > .bible-nav-btn { grid-column: 2 / 6; max-width: none; width: 100%; }
+  .bible-top-nav > .bible-nav-btn + .bible-arrow-btn { grid-column: 6; }
+  .bible-top-nav > .bible-tr { grid-column: 1 / 3; width: 100%; }
+  .bible-top-nav > [data-act="b-toggle-search"], .bible-top-nav > [data-act="m-tab"][data-t="search"] { grid-column: 5; }
+  .bible-top-nav > [data-act="close"] { grid-column: 6; }
+  .bible-top-nav > .bible-nav-title { grid-column: 2 / 6; }
+  .lib-bar > [data-act="b-toggle-search"] { grid-column: 6; }
+  .bible-arrow-btn { width: 100%; min-width: 0; }
+  .lib-reader { padding: 1.5rem 1rem; }
+  .lib-panel, .bible-reader-canvas, .bible-panel, .bible-picker-sheet { padding: 1rem; }
+  .bible-text-flow { font-size: 1.15rem; line-height: 1.9; }
+  .bible-books-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bible-chapter-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; }
+  .bible-floating-bar { padding: .65rem .75rem calc(.65rem + env(safe-area-inset-bottom, 0px)); }
+  .bible-bar-row > .btn { font-size: .85rem; padding-inline: .6rem; }
+  .bible-palette { gap: 3px; }
+  .login { padding: 1.5rem 1rem; }
+  .login-card { padding: 1.5rem; }
+  #toast { bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); text-align: center; }
+}
+@media (max-width: 360px) {
+  .brand-sub { max-width: 145px; }
+  .brand img { width: 32px; height: 32px; }
+  .who .linkbtn { padding-inline: .3rem; }
+  .page-heading h1 { font-size: 1.5rem; }
+  .page-heading > .btn { font-size: .8rem; }
+  .row { padding: .85rem; gap: .6rem; }
+  .dialog .bible-palette > span { flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+@media print {
+  .top, footer, .back, .btn, .more-menu, #toast, #modal { display: none !important; }
+  body { background: #fff; color: #000; }
+  main { max-width: none; padding: 0; }
+  .passage-card { break-inside: avoid; }
+}
