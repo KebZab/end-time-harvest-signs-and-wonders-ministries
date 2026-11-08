@@ -1,0 +1,31 @@
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+err.log
+out.log
+
+# SQLite local databases and temporary files
+# Note: church.db and bible.db are auto-generated and populated on launch
+data/*.db
+data/*.db-wal
+data/*.db-shm
+!data/.gitkeep
+
+# Environment / local configs
+.env
+venv/
+.venv/
+env/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
