@@ -1,13 +1,12 @@
-# Python cache & compiled files
-__pycache__/
-*.py[cod]
-*$py.class
+# Dependencies and generated website
+node_modules/
+dist/
 *.log
 err.log
 out.log
 
 # SQLite local databases and temporary files
-# Note: church.db and bible.db are auto-generated and populated on launch
+# Preserve any legacy local databases without committing their contents
 data/*.db
 data/*.db-wal
 data/*.db-shm

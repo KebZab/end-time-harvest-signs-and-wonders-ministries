@@ -1,80 +1,43 @@
-# Sermon Tracking and Bible Verse Management System
-**End Time Harvest Signs & Wonders Ministries, Inc.**
+# Sermon Library
 
-Records every sermon and every Bible verse the pastor mentions. Has an **Admin / Lead panel** (full control) and a
-**Viewer panel** (read only). Data is stored permanently in a database file.
+End Time Harvest Signs & Wonders Ministries, Inc.
 
-## Start it (no installation of extra software)
-You only need **Python 3.9 or newer** (https://www.python.org/downloads/).
+## Open the website
 
-- **Windows:** double-click `start.bat`
-- **Mac / Linux:** run `./start.sh` (or `python3 server.py`)
+Double-click **index.html** or **viewer.html** to view the public sermon library. Open **admin.html** to sign in and manage sermons.
 
-Then open **http://localhost:8000** in a browser.
-To let phones and other computers on the same Wi-Fi use it, open `http://<this-computer's-IP>:8000`.
+No Python, Node.js, launcher, terminal command, installation, or build is required to use the website. Keep the `static/` folder beside the HTML files. You can also upload these three HTML files and the entire `static/` folder to any static HTTPS host.
 
-## First-time setup
-The first time you open the page it asks you to **create the administrator account**. After that, sign in and use
-**Members and access** to add viewers (church members) and more admins. Nobody can use the system without an account.
+Internet access is required for Supabase. The full 66-book KJV is bundled locally. Other translations load on demand from the existing [Bible JSON source](https://github.com/thiagobodruk/bible); they retain their publishers' licenses.
 
-## What each role can do
-| | Admin / Lead | Viewer |
-|---|---|---|
-| See latest sermon, archive, verses, search | Yes | Yes |
-| Read full text of passages & highlighted sentences | Yes | Yes |
-| Browse & search the 66-book Digital Bible Library | Yes | Yes |
-| Select multiple verses, stages & translations | Yes | No |
-| Highlight sentences/phrases & choose colors | Yes | No |
-| Create, edit, delete & reorder sermons & verses | Yes | No |
-| Add, reset, deactivate, delete members | Yes | No |
-| Download a backup | Yes | No |
+## Public and admin access
 
-The server enforces this on every request, so a viewer cannot change anything even by trying.
+Viewers can read and search sermons, passages, highlights, notes, and the Bible Library without an account. Only `admin.html` restores the admin session and displays editing controls. Supabase row-level security enforces admin-only writes.
 
-## Built-in Digital Bible Library & Highlighting
-The system includes an offline digital Bible containing all **66 books** (Old Testament and New Testament) and supports **9 translations**:
-- **KJV** (King James Version)
-- **NKJV** (New King James Version)
-- **NIV** (New International Version)
-- **ESV** (English Standard Version)
-- **NASB** (New American Standard Bible)
-- **AMP** (Amplified Bible)
-- **NLT** (New Living Translation)
-- **WEB** (World English Bible)
-- **BBE** (Bible in Basic English)
+The initial admin login is `admin@endtimeharvest.local`. The generated password was provided in the setup conversation and is not stored in the repository. Change it under **Account** after signing in. This is a login identifier, not a mailbox; replace it with an email you own in Supabase Authentication for email recovery.
 
-### Multiple Verse Selection & Staging:
-1. Open any sermon record and click **"Add Bible Verse"**.
-2. Select book, chapter, and click verses or click **Range...** to select multiple verses.
-3. Select text with your cursor and click a highlight color (🟡 Yellow, 🟢 Green, 🔵 Blue, 🟣 Pink, 🟠 Orange) to emphasize phrases.
-4. Add an optional pastor's note.
-5. Click **"Stage This Passage"** to keep browsing other books/chapters and stage more passages.
-6. Click **"Save to Sermon Notes"** when finished.
+**Access & backup** downloads sermons and recorded scripture passages as JSON, including notes and highlights. Authentication credentials are never included.
 
-### Interactive Reordering & Editing:
-- In the sermon notes, admins can reorder passages up or down (`▲` / `▼`) to match the order the pastor preached them.
-- Click **Edit / Highlight** on any passage to switch translations, change highlighted text, or edit pastor notes.
-- Viewers see complete verse texts, translations, vivid highlights, and notes displayed directly on the sermon page.
+## Supabase
 
-## Your logo
-`static/logo.png` is the church logo. To change it, replace that file (keep the name).
+The connected project is `fokbrfhqryneszoweapn`. `static/config.js` contains its URL and public publishable key. Never add a service-role or secret key to the frontend.
 
-## Backups (important)
-All records live in **`data/church.db`**. Copy that file somewhere safe regularly (a USB drive or cloud folder).
-Admins can also press **Download backup** on the *Members and access* page for a readable JSON copy.
+`supabase_schema.sql` contains the schema and access policies already applied to the project. It allows public reads, restricts writes to active admins, protects profiles, and provides atomic sermon creation and passage reordering. User-supplied metadata and first signup cannot grant admin access.
 
-## Putting it online
-- Run it on a small server (or any always-on PC) and put it behind HTTPS (Caddy or nginx are easy choices).
-- When using HTTPS, start with `COOKIE_SECURE=1` so sign-in cookies are only sent securely.
-- Settings (environment variables): `PORT` (default 8000), `HOST` (default 0.0.0.0), `DB_PATH`, `COOKIE_SECURE`.
+To add an admin, the project owner creates a user in **Supabase Dashboard → Authentication → Users**, then grants access through the SQL editor:
 
-## Security built in
-Passwords are stored as salted scrypt hashes, never in plain text. Sessions use random tokens in HttpOnly,
-SameSite=Strict cookies and expire after 7 days. Five wrong passwords lock that username/device for 10 minutes.
-All database queries are parameterised, all page content is escaped, and security headers are set.
+```sql
+update public.profiles set role = 'ADMIN', active = true
+where id = (select id from auth.users where email = 'admin@example.com');
+```
 
-## Folder contents
-    server.py          the server, database and API
-    static/            the web pages (index.html, app.css, app.js, logo.png)
-    data/church.db     created automatically on first run: your records
-    start.bat / start.sh
+Set the profile's `active` field to `false` to revoke editing access.
+
+## Files and optional developer checks
+
+- `index.html` / `viewer.html`: public entry pages.
+- `admin.html`: admin sign in and management.
+- `static/`: styles, logo, JavaScript, and bundled KJV.
+- `static/vendor/supabase.js`: locally bundled Supabase JavaScript client, version 2.119.0.
+
+The optional `package.json`, lockfile, and `tests/` are for development checks only (`npm ci` then `npm test`). They are not needed to open or host the website. There is no start or build command.

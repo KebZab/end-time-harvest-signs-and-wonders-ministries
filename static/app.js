@@ -4,27 +4,10 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let me = null, serverInfo = null, books = [], bibleTranslations = [], setupNeeded = false, route = {}, current = null;
+const ADMIN_PAGE = /\/admin(?:\.html)?\/?$/.test(location.pathname);
+let me = null, books = [], bibleTranslations = [], route = {}, current = null;
 
-const isFileOrCrossPort = window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8000' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
-const API_BASE = isFileOrCrossPort ? 'http://localhost:8000/api' : '/api';
-
-/* ---------- API helper ---------- */
-async function api(path, method = 'GET', body) {
-  const opt = { method, credentials: isFileOrCrossPort ? 'include' : 'same-origin', headers: {} };
-  if (method !== 'GET') { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body || {}); }
-  let r;
-  try {
-    r = await fetch(API_BASE + path, opt);
-  } catch (err) {
-    console.error('API call failed:', API_BASE + path, err);
-    throw new Error('Cannot reach the server. Check that it is running at http://localhost:8000');
-  }
-  let data = null; try { data = await r.json(); } catch { }
-  if (r.status === 401 && me) { me = null; render(); throw new Error('Your session has ended. Please sign in again.'); }
-  if (!r.ok) throw new Error(data?.error || 'Something went wrong.');
-  return data;
-}
+const api = (...args) => window.ChurchAPI.api(...args);
 
 let toastTimer;
 function toast(msg, bad) {
@@ -35,7 +18,7 @@ function toast(msg, bad) {
 const fmtDate = (d, long = true) => new Date(d + 'T00:00:00').toLocaleDateString(undefined,
   long ? { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
-const isAdmin = () => me?.role === 'ADMIN';
+const isAdmin = () => ADMIN_PAGE && me?.role === 'ADMIN' && me?.active;
 
 function openModal(html, isWide = false) {
   const m = $('#modal');
@@ -136,7 +119,7 @@ function shell(inner) {
     ['archive', 'Sermon archive', 'Sermons', '📚'],
     ['bible', 'Bible Library', 'Bible', '📖'],
     ['new', 'New sermon', 'New', '➕'],
-    ['members', 'Members and access', 'Members', '👥']
+    ['members', 'Access & backup', 'Access', '👥']
   ] : [
     ['', 'Home', 'Home', '🏠'],
     ['archive', 'Sermon archive', 'Sermons', '📚'],
@@ -145,11 +128,12 @@ function shell(inner) {
   const here = route.name === 'sermon' || route.name === 'edit' ? 'archive' : route.name;
 
   return `<a class="skip" href="#main">Skip to content</a>
-  ${admin ? '<div class="adminbar">Administrator panel: you have full control over sermons, verses, and member accounts.</div>' : ''}
+  ${admin ? '<div class="adminbar">Administrator panel: manage sermons, scripture passages, and highlights.</div>' : ''}
   <header class="top"><div class="top-in">
-    <a class="brand" href="#/"><img src="/static/logo.png" alt="Church logo"><span class="name">${esc(CHURCH)}</span></a>
-    <div class="who"><span class="badge ${admin ? '' : 'viewer'}">${admin ? 'Admin' : 'Viewer'}</span> <span class="who-name">${esc(me.full_name)}</span>
-      <button class="linkbtn" data-act="account">Account</button><button class="linkbtn" data-act="logout">Sign out</button></div></div>
+    <a class="brand" href="#/"><img src="static/logo.png" alt="Church logo"><span class="name">${esc(CHURCH)}</span></a>
+    <div class="who">${admin ? `<span class="badge">Admin</span> <span class="who-name">${esc(me.full_name)}</span>
+      <a class="linkbtn" href="viewer.html">View public library</a><button class="linkbtn" data-act="account">Account</button><button class="linkbtn" data-act="logout">Sign out</button>`
+      : '<span class="badge viewer">Public library</span><a class="linkbtn" href="admin.html">Admin sign in</a>'}</div></div>
   <nav class="main" aria-label="Main"><div>${links.map(([h, t, s, i]) => `<a href="#/${h}" ${(here || '') === h ? 'aria-current="page"' : ''}><span class="nav-ico" aria-hidden="true">${i}</span><span class="nav-full">${t}</span><span class="nav-short">${s}</span></a>`).join('')}</div></nav></header>
   <main id="main">${inner}</main><footer>${esc(CHURCH)}</footer>`;
 }
@@ -868,61 +852,28 @@ function openEditPassage(v) {
   setupEditEvents();
 }
 
-/* ---------- User Management View ---------- */
+/* ---------- Administrator access ---------- */
 async function viewMembers() {
-  const users = await api('/users');
-  return shell(`<h1>Members and access</h1>
-    <p class="muted">Viewers can read sermons and scriptures in read-only mode. Administrators can manage sermons, scriptures, and users.</p>
-    <div class="card"><h2>Add a member</h2><form data-form="user"><div id="err"></div>
-      <div class="grid2"><div class="field"><label for="fn">Full name</label><input id="fn" required maxlength="100"></div>
-      <div class="field"><label for="un">Username</label><input id="un" required minlength="3" maxlength="40" autocapitalize="off" autocomplete="off"></div>
-      <div class="field"><label for="pw">Temporary password <span class="hint">(at least 8 characters)</span></label><input id="pw" type="text" required minlength="8" autocomplete="off"></div>
-      <div class="field"><label for="role">Access level</label><select id="role"><option value="VIEWER">Viewer (read only)</option><option value="ADMIN">Admin / Lead (full access)</option></select></div></div>
-      <button class="btn" type="submit">Add member</button></form></div>
-    <div class="card"><h2>Everyone with access (${users.length})</h2><div class="users">${users.map(u => `
-      <div class="u"><div><b>${esc(u.full_name)}</b> <span class="badge ${u.role === 'ADMIN' ? '' : 'viewer'}" style="${u.role === 'ADMIN' ? '' : 'color:var(--muted);border-color:var(--line)'}">${u.role === 'ADMIN' ? 'Admin' : 'Viewer'}</span>
-        ${u.active ? '' : '<span class="badge off">Deactivated</span>'}<br><span class="muted">${esc(u.username)}</span></div>
-        ${u.id === me.id ? '<span class="muted">This is you</span>' : `<div class="actions">
-          <button class="btn ghost small" data-act="reset-pw" data-id="${u.id}" data-name="${esc(u.full_name)}">Reset password</button>
-          <button class="btn ghost small" data-act="toggle-user" data-id="${u.id}" data-active="${u.active ? 0 : 1}">${u.active ? 'Deactivate' : 'Reactivate'}</button>
-          <button class="btn danger small" data-act="del-user" data-id="${u.id}" data-name="${esc(u.full_name)}">Delete</button></div>`}</div>`).join('')}</div></div>
-    <div class="card"><h2>Backup</h2><p class="muted">Download every sermon and verse as a JSON file you can keep safe.</p>
-      <a class="btn" href="/api/export" download>Download backup</a></div>`);
+  return shell(`<h1>Access & backup</h1>
+    <div class="card"><h2>Public sermon library</h2><p>Everyone can read sermons, scriptures, and highlights without creating an account.</p>
+      <a class="btn" href="viewer.html">Open viewer page</a></div>
+    <div class="card"><h2>Administrator access</h2><p>Signed in as <b>${esc(me.email)}</b>.</p>
+      <p>Additional administrators are created by the project owner in Supabase Authentication. Viewer accounts are not needed.</p>
+      <button class="btn ghost" data-act="account">Change your password</button></div>
+    <div class="card"><h2>Backup</h2><p>Download all sermons and scripture passages, including notes and highlights.</p>
+      <button class="btn" data-act="export">Download backup</button></div>`);
 }
 
 function viewLogin() {
   document.body.className = 'gate';
-  app.innerHTML = `<main class="login"><div class="login-card"><img src="/static/logo.png" alt="Church logo">
-    <h1>${esc(CHURCH)}</h1><p class="sub">${setupNeeded ? 'Welcome. Create the first administrator account to begin.' : 'Sermon topics and Bible verses'}</p>
-    <form data-form="${setupNeeded ? 'setup' : 'login'}"><div id="err"></div>
-      ${setupNeeded ? '<div class="field"><label for="fn">Your full name</label><input id="fn" required maxlength="100" autocomplete="name"></div>' : `
-      <div class="autofill-section" style="margin-bottom:1.25rem;padding:.85rem;border-radius:10px;background:rgba(242,181,27,.09);border:1.5px dashed var(--gold);text-align:left">
-        <div style="font-size:.85rem;font-weight:700;color:var(--gold-soft);margin-bottom:.55rem;display:flex;align-items:center;gap:.4rem">
-          ⚡ <span>Choose Role to Autofill Username & Password:</span>
-        </div>
-        <div class="grid2" style="gap:.5rem">
-          <button type="button" class="btn small" data-act="autofill-login" data-role="admin" style="width:100%;font-size:.86rem;padding:.35rem .5rem">
-            👑 Autofill Admin
-          </button>
-          <button type="button" class="btn ghost small" data-act="autofill-login" data-role="viewer" style="width:100%;font-size:.86rem;padding:.35rem .5rem">
-            📖 Autofill Viewer
-          </button>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:.5rem;margin-top:.5rem;font-size:.78rem;color:var(--muted);flex-wrap:wrap">
-          <span>👑 Admin: <b>KevinZabal</b> / <b>admin123</b></span>
-          <span>📖 Viewer: <b>member</b> / <b>password123</b></span>
-        </div>
-      </div>`}
-      <div class="field"><label for="un">Username</label><input id="un" required autocapitalize="off" autocomplete="username"></div>
-      <div class="field"><label for="pw">Password ${setupNeeded ? '<span class="hint">(at least 8 characters)</span>' : ''}</label><input id="pw" type="password" required ${setupNeeded ? 'minlength="8"' : ''} autocomplete="${setupNeeded ? 'new-password' : 'current-password'}"></div>
-      ${setupNeeded ? '' : `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;font-size:.86rem">
-        <label style="display:flex;align-items:center;gap:.45rem;margin:0;font-weight:400;cursor:pointer;color:var(--muted)">
-          <input type="checkbox" id="remember-cred" checked style="width:auto;min-height:auto"> Remember credentials
-        </label>
-        <span id="autofill-hint" class="muted" style="font-size:.82rem"></span>
-      </div>`}
-      <button class="btn" type="submit">${setupNeeded ? 'Create administrator account' : 'Sign in'}</button></form></div></main>`;
+  app.innerHTML = `<main class="login"><div class="login-card"><img src="static/logo.png" alt="Church logo">
+    <h1>${esc(CHURCH)}</h1><p class="sub">Administrator sign in</p>
+    <p>Read sermons freely on the <a href="viewer.html">public viewer page</a>.</p>
+    <form data-form="login"><div id="err" role="alert"></div>
+      <div class="field"><label for="un">Administrator email</label><input id="un" type="email" required autocapitalize="off" autocomplete="username"></div>
+      <div class="field"><label for="pw">Password</label><input id="pw" type="password" required autocomplete="current-password"></div>
+      <button class="btn" type="submit">Sign in to admin</button>
+    </form></div></main>`;
   $('#un')?.focus();
 }
 
@@ -935,7 +886,7 @@ function parseRoute() {
 }
 
 async function render() {
-  if (!me) return viewLogin();
+  if (ADMIN_PAGE && !isAdmin()) return viewLogin();
   route = parseRoute();
   document.body.className = isAdmin() ? 'admin' : 'viewer';
   if (!isAdmin() && ['new', 'edit', 'members'].includes(route.name)) { location.hash = '#/'; return; }
@@ -960,38 +911,22 @@ const confirmBox = (title, msg, okLabel) => new Promise(res => {
 
 const ACTIONS = {
   close: closeModal,
-  'autofill-login'(el) {
-    const role = el.dataset.role;
-    const unEl = $('#un');
-    const pwEl = $('#pw');
-    const hintEl = $('#autofill-hint');
-    if (!unEl || !pwEl) return;
-
-    if (role === 'admin') {
-      const adminName = serverInfo?.admin_username || localStorage.getItem('last_admin_user') || 'KevinZabal';
-      const adminPw = localStorage.getItem('saved_admin_pw') || 'admin123';
-      unEl.value = adminName;
-      pwEl.value = adminPw;
-      if (hintEl) hintEl.textContent = 'Admin credentials ready';
-      toast(`Autofilled Admin account (${adminName}) with password`);
-      $('#pw')?.focus();
-    } else {
-      const viewerName = serverInfo?.viewer_username || 'member';
-      const viewerPw = localStorage.getItem('saved_viewer_pw') || 'password123';
-      unEl.value = viewerName;
-      pwEl.value = viewerPw;
-      if (hintEl) hintEl.textContent = 'Viewer credentials ready';
-      toast(`Autofilled Viewer account (${viewerName}) with password`);
-      $('#pw')?.focus();
-    }
+  async logout() { try { await api('/logout', 'POST'); me = null; closeModal(); location.hash = ''; render(); } catch (e) { toast(e.message, true); } },
+  async export() {
+    try {
+      const sermons = await api('/export');
+      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), sermons }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = 'sermon-library-' + today() + '.json'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { toast(e.message, true); }
   },
-  async logout() { try { await api('/logout', 'POST'); } catch { } me = null; location.hash = ''; render(); },
   account() {
     openModal(`<div class="dialog-head"><h2>Your account</h2><button class="btn ghost small" data-act="close">✕ Close</button></div>
       <p><b>${esc(me.full_name)}</b><br><span class="muted">Username: ${esc(me.username)}</span></p>
       <form data-form="password"><div id="err"></div><h3>Change password</h3>
       <div class="field"><label for="cur">Current password</label><input id="cur" type="password" required autocomplete="current-password"></div>
-      <div class="field"><label for="new">New password <span class="hint">(at least 8 characters)</span></label><input id="new" type="password" required minlength="8" autocomplete="new-password"></div>
+      <div class="field"><label for="new">New password <span class="hint">(at least 12 characters)</span></label><input id="new" type="password" required minlength="12" autocomplete="new-password"></div>
       <button class="btn" type="submit">Save new password</button></form>`);
   },
   async 'del-sermon'() {
@@ -1068,20 +1003,6 @@ const ACTIONS = {
     $('#form-staged-count').textContent = `${newSermonStagedVerses.length} passage(s) staged`;
     $('#form-staged-list').innerHTML = renderFormStagedVerses();
   },
-  'reset-pw'(el) {
-    openModal(`<div class="dialog-head"><h2>Reset password</h2><button class="btn ghost small" data-act="close">✕ Close</button></div>
-      <form data-form="reset" data-id="${el.dataset.id}"><div id="err"></div><p>Choose a new temporary password for <b>${esc(el.dataset.name)}</b>.</p>
-      <div class="field"><label for="np">New password</label><input id="np" type="text" required minlength="8" autocomplete="off"></div>
-      <button class="btn" type="submit">Reset password</button></form>`);
-  },
-  async 'toggle-user'(el) {
-    try { await api('/users/' + el.dataset.id, 'PUT', { active: el.dataset.active === '1' }); render(); } catch (e) { toast(e.message, true); }
-  },
-  async 'del-user'(el) {
-    if (!await confirmBox('Delete this member?', `${el.dataset.name} will lose access permanently.`, 'Delete member')) return;
-    try { await api('/users/' + el.dataset.id, 'DELETE'); toast('Member deleted'); render(); } catch (e) { toast(e.message, true); }
-  },
-
   /* Bible Library handlers */
   'b-toggle-picker'() {
     const S = bibleViewState;
@@ -1332,25 +1253,7 @@ document.addEventListener('keydown', e => {
 /* ---------- Forms ---------- */
 const FORMS = {
   async login() {
-    const username = val('un');
-    const password = $('#pw').value;
-    const remember = $('#remember-cred')?.checked;
-
-    await api('/login', 'POST', { username, password });
-
-    if (remember) {
-      if (username.toLowerCase() === (serverInfo?.admin_username || 'kevinzabal').toLowerCase()) {
-        localStorage.setItem('saved_admin_pw', password);
-        localStorage.setItem('last_admin_user', username);
-      } else {
-        localStorage.setItem('saved_viewer_pw', password);
-        localStorage.setItem('last_viewer_user', username);
-      }
-    }
-    await boot();
-  },
-  async setup() {
-    await api('/setup', 'POST', { full_name: val('fn'), username: val('un'), password: $('#pw').value });
+    await api('/login', 'POST', { username: val('un'), password: $('#pw').value });
     await boot();
   },
   search() {
@@ -1374,16 +1277,6 @@ const FORMS = {
     const s = await api('/sermons', 'POST', body);
     toast('Sermon created with ' + newSermonStagedVerses.length + ' scripture passage(s)');
     location.hash = '#/sermon/' + s.id;
-  },
-  async user() {
-    await api('/users', 'POST', { full_name: val('fn'), username: val('un'), password: val('pw'), role: $('#role').value });
-    toast('Member added');
-    render();
-  },
-  async reset(f) {
-    await api('/users/' + f.dataset.id, 'PUT', { password: $('#np').value });
-    closeModal();
-    toast('Password reset');
   },
   async password() {
     await api('/account/password', 'POST', { current: $('#cur').value, new: $('#new').value });
@@ -1470,19 +1363,20 @@ document.addEventListener('input', e => {
 
 /* ---------- Initialization ---------- */
 async function boot() {
+  app.innerHTML = '<main class="login"><div class="login-card"><p role="status">Loading sermon library…</p></div></main>';
   try {
     const m = await api('/me');
-    serverInfo = m;
     me = m.user;
-    setupNeeded = m.setup_needed;
-    if (me) {
-      books = await api('/bible/books');
-      bibleTranslations = await api('/bible/translations');
-    }
+    [books, bibleTranslations] = await Promise.all([api('/bible/books'), api('/bible/translations')]);
+    if (!bibleTranslations.some(t => t.id === bibleViewState.tr)) bibleViewState.tr = 'KJV';
+    if (!bibleTranslations.some(t => t.id === modalState.tr)) modalState.tr = 'KJV';
   } catch (e) {
-    app.innerHTML = `<main class="login"><div class="login-card"><h1>${esc(e.message)}</h1></div></main>`;
+    app.innerHTML = `<main class="login"><div class="login-card"><h1>Could not connect</h1><p>${esc(e.message)}</p><button class="btn" onclick="location.reload()">Try again</button><a href="viewer.html">Public library</a></div></main>`;
     return;
   }
-  render();
+  await render();
 }
+// Remove plaintext credentials saved by the retired local login screen.
+['saved_admin_pw','saved_viewer_pw','last_admin_user','last_viewer_user'].forEach(key => localStorage.removeItem(key));
+if (ADMIN_PAGE) window.ChurchAPI.subscribeAuth(() => { me = null; closeModal(); render(); });
 boot();
