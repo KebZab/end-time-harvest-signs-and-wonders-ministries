@@ -195,9 +195,9 @@ function subscribeAuth(callback) {
 }
 function cleanSermon(body) {
   const title=String(body.title||'').trim(),pastor=String(body.pastor||'').trim();
-  if(!title||title.length>200)throw new Error('Enter a sermon title of up to 200 characters.');
+  if(!title||title.length>200)throw new Error('Enter a topic title of up to 200 characters.');
   if(!pastor||pastor.length>120)throw new Error('Enter a pastor name of up to 120 characters.');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(body.sermon_date))throw new Error('Enter a sermon date.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(body.sermon_date))throw new Error('Enter a topic date.');
   return {title,pastor,sermon_date:body.sermon_date,description:String(body.description||'').slice(0,5000)};
 }
 function cleanVerse(v,position) {
@@ -250,7 +250,7 @@ async function api(path,method='GET',body={}) {
     const id=Number(parts[1]),key='detail:'+id;
     if(method==='GET') {
       const data=await cached(key,async()=>{const row=await result(client.from('sermons').select(FIELDS+',description,verses(*)').eq('id',id).maybeSingle());return row?sermon(row):null;});
-      if(!data)throw new Error('This sermon is no longer available.');return data;
+      if(!data)throw new Error('This topic is no longer available.');return data;
     }
     if(parts[2]==='reorder-verses') {
       await result(client.rpc('reorder_sermon_verses',{p_sermon_id:id,p_order:body.order}));
