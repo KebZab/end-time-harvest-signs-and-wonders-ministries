@@ -148,7 +148,7 @@ const icon = name => '<svg class="icon" width="20" height="20" viewBox="0 0 24 2
 
 function shell(inner) {
   const admin = isAdmin();
-  const links = [['','Home','home'],['archive','Sermons','archive'],['bible','Bible','book']];
+  const links = [['','Home','home'],['archive','Topics','archive'],['bible','Bible','book']];
   if(admin) links.push(['members','Settings','settings']);
   const here = ['sermon','edit','new'].includes(route.name) ? 'archive' : route.name;
   return `<a class="skip" href="#main">Skip to content</a>
@@ -159,7 +159,7 @@ function shell(inner) {
     </div>
     <nav class="main" aria-label="Main navigation"><div>${links.map(([h,label,i]) => `<a href="#/${h}" ${here === h ? 'aria-current="page"' : ''}>${icon(i)}<span>${label}</span></a>`).join('')}</div></nav></header>
     <main id="main" tabindex="-1">${inner}</main>
-    <footer>${esc(CHURCH)}${admin ? '<a href="viewer.html">View public library</a>' : ''}</footer>`;
+    <footer>${esc(CHURCH)}${admin ? '<a href="viewer.html">View Sunday service topics</a>' : ''}</footer>`;
 }
 
 function sermonRow(s) {
@@ -176,51 +176,51 @@ async function viewDashboard() {
   const rest = d.recent.filter(s => !L || s.id !== L.id).slice(0,4);
   const explore = admin ? '' : `<nav class="viewer-explore" aria-label="Explore the library">
     <a class="browse-card" href="#/archive"><span class="browse-icon">${icon('archive')}</span>
-      <span class="browse-copy"><strong>All sermons</strong><span>Find a past message</span></span>${icon('arrow')}</a>
+      <span class="browse-copy"><strong>All topics</strong><span>Find a past message</span></span>${icon('arrow')}</a>
     <a class="browse-card" href="#/bible"><span class="browse-icon">${icon('book')}</span>
       <span class="browse-copy"><strong>Read the Bible</strong><span>Explore the scriptures</span></span>${icon('arrow')}</a>
   </nav>`;
-  return shell(`<div class="${admin ? 'admin-home' : 'viewer-home'}"><div class="page-heading"><div><h1>Sermon library</h1><p class="muted">Read, reflect, and revisit.</p></div>
-    ${admin ? `<a class="btn" href="#/new">${icon('plus')} New sermon</a>` : ''}</div>
-    ${L ? `<section class="hero" aria-labelledby="latest"><p class="kicker">Latest sermon</p>
+  return shell(`<div class="${admin ? 'admin-home' : 'viewer-home'}"><div class="page-heading"><div><h1>Sunday Service Topics</h1><p class="muted">Read, reflect, and revisit.</p></div>
+    ${admin ? `<a class="btn" href="#/new">${icon('plus')} New topic</a>` : ''}</div>
+    ${L ? `<section class="hero" aria-labelledby="latest"><p class="kicker">Latest topic</p>
       <h2 id="latest">${esc(L.title)}</h2><p class="sermon-meta">${esc(L.pastor)} <span aria-hidden="true">·</span> ${fmtDate(L.sermon_date,false)}</p>
-      <a class="btn" href="#/sermon/${L.id}">Read sermon ${icon('arrow')}</a></section>
-      <form class="search ${admin ? '' : 'viewer-search'}" data-form="search"><label class="sr-only" for="q">Search sermons or scripture</label>
-        ${admin ? '' : icon('search')}<input id="q" type="search" placeholder="Search sermons or scripture" autocomplete="off"><button class="btn ghost" type="submit">Search</button></form>
+      <a class="btn" href="#/sermon/${L.id}">Read topic ${icon('arrow')}</a></section>
+      <form class="search ${admin ? '' : 'viewer-search'}" data-form="search"><label class="sr-only" for="q">Search topics or scripture</label>
+        ${admin ? '' : icon('search')}<input id="q" type="search" placeholder="Search topics or scripture" autocomplete="off"><button class="btn ghost" type="submit">Search</button></form>
       ${explore}
-      ${rest.length ? `<div class="sec-head"><h2>Recent sermons</h2>${admin ? '<a href="#/archive">View all</a>' : ''}</div><div class="rows">${rest.map(sermonRow).join('')}</div>`
-        : admin ? '<a class="text-link" href="#/archive">Browse all sermons →</a>' : ''}`
-      : `<section class="empty-state">${icon('book')}<h2>No sermons recorded yet</h2><p>${admin ? 'Add your first sermon to begin the library.' : 'New messages will appear here after the next service.'}</p>
+      ${rest.length ? `<div class="sec-head"><h2>Recent topics</h2>${admin ? '<a href="#/archive">View all</a>' : ''}</div><div class="rows">${rest.map(sermonRow).join('')}</div>`
+        : admin ? '<a class="text-link" href="#/archive">Browse all topics →</a>' : ''}`
+      : `<section class="empty-state">${icon('book')}<h2>No topics recorded yet</h2><p>${admin ? 'Add your first topic to begin the library.' : 'New messages will appear here after the next service.'}</p>
         <a class="btn ghost" href="#/bible">Read the Bible</a></section>`}</div>`);
 }
 
 /* ---------- Archive View ---------- */
 function archiveList(list, q) {
   return list.length ? `<div class="rows">${list.map(sermonRow).join('')}</div>`
-    : `<div class="card empty">${q ? `No sermons match "${esc(q)}". Try a pastor's name, a topic, or a verse such as Romans 8.` : 'No sermons have been recorded yet.'}</div>`;
+    : `<div class="card empty">${q ? `No topics match "${esc(q)}". Try a pastor's name, a topic, or a verse such as Romans 8.` : 'No topics have been recorded yet.'}</div>`;
 }
 
 async function viewArchive() {
   const q = route.q || '', data = await api('/sermons?q=' + encodeURIComponent(q) + '&page=' + route.page);
-  return shell(`<div class="page-heading"><h1>Sermons</h1>${isAdmin() ? `<a class="btn" href="#/new">${icon('plus')} New sermon</a>` : ''}</div>
-    <div class="archive-search"><label class="sr-only" for="q">Search sermons</label>
+  return shell(`<div class="page-heading"><h1>Topics</h1>${isAdmin() ? `<a class="btn" href="#/new">${icon('plus')} New topic</a>` : ''}</div>
+    <div class="archive-search"><label class="sr-only" for="q">Search topics</label>
       <input id="q" type="search" value="${esc(q)}" placeholder="Search topic, pastor, or scripture" autocomplete="off"></div>
     <p class="results-count" id="count" aria-live="polite">${archiveCount(data)}</p>
     <div id="results">${archiveList(data.items,q)}</div><div id="archive-pager">${archivePager(data,q)}</div>`);
 }
 function archiveCount(data) {
-  if (!data.items.length) return 'No sermons found';
+  if (!data.items.length) return 'No topics found';
   const start = data.page * data.page_size + 1, end = start + data.items.length - 1;
   return `Showing ${start}–${end}`;
 }
 function archivePager(data,q) {
   if (!data.page && !data.has_more) return '';
   const link = page => '#/archive?q=' + encodeURIComponent(q) + '&page=' + page;
-  return `<nav class="archive-pagination" aria-label="Sermon pages">${data.page ? `<a class="btn ghost" href="${link(data.page-1)}">← Newer</a>` : '<span></span>'}
+  return `<nav class="archive-pagination" aria-label="Topic pages">${data.page ? `<a class="btn ghost" href="${link(data.page-1)}">← Newer</a>` : '<span></span>'}
     ${data.has_more ? `<a class="btn ghost" href="${link(data.page+1)}">Older →</a>` : ''}</nav>`;
 }
 
-/* ---------- Sermon Detail View ---------- */
+/* ---------- Topic Detail View ---------- */
 function passageCard(v, idx, total, admin) {
   return `<article class="passage-card" data-verse-id="${v.id}">
     <div class="p-head"><div class="p-ref"><h3>${esc(v.book)} ${v.chapter}:${esc(v.verse_list || (v.verse_start ? v.verse_start + (v.verse_end ? '-' + v.verse_end : '') : ''))}</h3>
@@ -240,18 +240,18 @@ async function viewSermon() {
   const s = await api('/sermons/' + route.id), admin = isAdmin(), verses = s.verses || [];
   if (version !== renderVersion) return '';
   current = s;
-  return shell(`<a class="back" href="#/archive">← Sermons</a>
+  return shell(`<a class="back" href="#/archive">← Topics</a>
     <article class="s-head"><h1>${esc(s.title)}</h1><p class="sermon-meta">${esc(s.pastor)} <span aria-hidden="true">·</span> ${fmtDate(s.sermon_date,false)}</p>
       ${s.description ? `<p class="desc">${esc(s.description)}</p>` : ''}
-      ${admin ? `<div class="actions"><a class="btn ghost small" href="#/edit/${s.id}">Edit sermon</a>
-        <details class="more-menu"><summary aria-label="Sermon options">${icon('more')}</summary><div class="menu-items"><button class="danger-text" data-act="del-sermon">Delete sermon</button></div></details></div>` : ''}</article>
+      ${admin ? `<div class="actions"><a class="btn ghost small" href="#/edit/${s.id}">Edit topic</a>
+        <details class="more-menu"><summary aria-label="Topic options">${icon('more')}</summary><div class="menu-items"><button class="danger-text" data-act="del-sermon">Delete topic</button></div></details></div>` : ''}</article>
     <section class="scriptures"><div class="sec-head"><h2>Scripture <span class="muted" id="scripture-count">${verses.length}</span></h2>
       ${admin ? `<button class="btn small" data-act="add-bible-passage">${icon('plus')} Add passage</button>` : ''}</div>
       <div id="passages-content">${verses.length ? `<div class="passage-list">${verses.map((v,i)=>passageCard(v,i,verses.length,admin)).join('')}</div>`
         : '<div class="empty card">No scripture passages added yet.</div>'}</div></section>`);
 }
 
-/* ---------- Sermon Form (Create / Edit) ---------- */
+/* ---------- Topic Form (Create / Edit) ---------- */
 let newSermonStagedVerses = [];
 
 async function viewForm() {
@@ -260,9 +260,9 @@ async function viewForm() {
   if (!editing) newSermonStagedVerses = [];
 
   return shell(`<a class="back" href="${editing ? '#/sermon/' + s.id : '#/archive'}">Cancel</a>
-    <div class="card"><h1>${editing ? 'Edit sermon' : 'New sermon'}</h1>
+    <div class="card"><h1>${editing ? 'Edit topic' : 'New topic'}</h1>
     <form data-form="sermon" ${editing ? `data-id="${s.id}"` : ''}><div id="err"></div>
-      <div class="field"><label for="title">Sermon title or topic</label><input id="title" required maxlength="200" value="${esc(s.title)}"></div>
+      <div class="field"><label for="title">Topic title</label><input id="title" required maxlength="200" value="${esc(s.title)}"></div>
       <div class="grid2"><div class="field"><label for="pastor">Pastor's name</label><input id="pastor" required maxlength="120" value="${esc(s.pastor)}"></div>
       <div class="field"><label for="date">Date of service</label><input id="date" type="date" required value="${s.sermon_date}"></div></div>
       <div class="field"><label for="desc">Short description or notes <span class="hint">(optional)</span></label><textarea id="desc" rows="4" maxlength="5000">${esc(s.description)}</textarea></div>
@@ -270,13 +270,13 @@ async function viewForm() {
       ${editing ? '' : `
       <div class="staging-area">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
-          <div><b>Bible passages for this sermon</b><br><span class="muted" id="form-staged-count">${newSermonStagedVerses.length} passage(s) staged</span></div>
+          <div><b>Bible passages for this topic</b><br><span class="muted" id="form-staged-count">${newSermonStagedVerses.length} passage(s) staged</span></div>
           <button type="button" class="btn small" data-act="form-add-passage">Add scripture</button>
         </div>
         <div id="form-staged-list" style="margin-top:.8rem">${renderFormStagedVerses()}</div>
       </div>`}
 
-      <button class="btn" type="submit">${editing ? 'Save changes' : 'Save sermon'}</button></form></div>`);
+      <button class="btn" type="submit">${editing ? 'Save changes' : 'Save topic'}</button></form></div>`);
 }
 
 function renderFormStagedVerses() {
@@ -856,20 +856,20 @@ async function viewMembers() {
   return shell(`<div class="page-heading"><h1>Settings</h1></div>
     <section class="card settings-card"><h2>Your account</h2><p class="muted">${esc(me.email)}</p>
       <div class="actions"><button class="btn ghost" data-act="account">Change password</button><button class="btn ghost" data-act="logout">Sign out</button></div></section>
-    <section class="card settings-card"><h2>Backup</h2><p class="muted">Save a copy of your sermons, scripture, and notes.</p><button class="btn" data-act="export">Download backup</button></section>
-    <a class="text-link" href="viewer.html">Open public library →</a>`);
+    <section class="card settings-card"><h2>Backup</h2><p class="muted">Save a copy of your topics, scripture, and notes.</p><button class="btn" data-act="export">Download backup</button></section>
+    <a class="text-link" href="viewer.html">View Sunday service topics →</a>`);
 }
 
 function viewLogin() {
   document.body.className = 'gate';
   app.innerHTML = `<main class="login"><div class="login-card">
     <a class="login-brand" href="viewer.html"><img src="static/logo.png" alt="" width="56" height="56"><span>End Time Harvest</span></a>
-    <h1>Admin sign in</h1><p class="muted">Manage sermons and scripture.</p>
+    <h1>Admin sign in</h1><p class="muted">Manage topics and scripture.</p>
     <form data-form="login"><div id="err" role="alert"></div>
       <div class="field"><label for="un">Email</label><input id="un" type="email" required autocapitalize="off" autocomplete="username" placeholder="Your administrator email"></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" required autocomplete="current-password"></div>
       <button class="btn" type="submit">Sign in</button></form>
-    <a class="login-back" href="viewer.html">← Back to sermon library</a></div></main>`;
+    <a class="login-back" href="viewer.html">← Back to Sunday service topics</a></div></main>`;
 }
 
 /* ---------- Router ---------- */
@@ -966,7 +966,7 @@ const ACTIONS = {
       const sermons = await api('/export');
       const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), sermons }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob), link = document.createElement('a');
-      link.href = url; link.download = 'sermon-library-' + today() + '.json'; link.click();
+      link.href = url; link.download = 'sunday-service-topics-' + today() + '.json'; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) { toast(e.message, true); }
   },
@@ -979,12 +979,12 @@ const ACTIONS = {
       <button class="btn" type="submit">Save new password</button></form>`);
   },
   async 'del-sermon'() {
-    if (!await confirmBox('Delete this sermon?', `"${current.title}" and its ${current.verses.length} scripture passage(s) will be permanently removed.`, 'Delete sermon')) return;
-    try { await api('/sermons/' + current.id, 'DELETE'); toast('Sermon deleted'); location.hash = '#/archive'; } catch (e) { toast(e.message, true); }
+    if (!await confirmBox('Delete this topic?', `"${current.title}" and its ${current.verses.length} scripture passage(s) will be permanently removed.`, 'Delete topic')) return;
+    try { await api('/sermons/' + current.id, 'DELETE'); toast('Topic deleted'); location.hash = '#/archive'; } catch (e) { toast(e.message, true); }
   },
   async 'del-verse'(el) {
     const v = current.verses.find(x => x.id == el.dataset.id);
-    if (!await confirmBox('Delete this scripture?', `${v.ref} will be removed from this sermon.`, 'Delete scripture')) return;
+    if (!await confirmBox('Delete this scripture?', `${v.ref} will be removed from this topic.`, 'Delete scripture')) return;
     try { await api('/verses/' + v.id, 'DELETE'); toast('Passage removed'); render(); } catch (e) { toast(e.message, true); }
   },
   'copy-passage'(el) {
@@ -1031,7 +1031,7 @@ const ACTIONS = {
       sermonId: current.id,
       onSave: async (passages) => {
         await api(`/sermons/${current.id}/verses`, 'POST', { verses: passages });
-        toast(`${passages.length} scripture passage(s) added to sermon`);
+        toast(`${passages.length} scripture passage(s) added to topic`);
         render();
       }
     });
@@ -1223,7 +1223,7 @@ const ACTIONS = {
         await modalState.onSave(allToSave);
       } else if (modalState.sermonId) {
         await api(`/sermons/${modalState.sermonId}/verses`, 'POST', { verses: allToSave });
-        toast(`${allToSave.length} passage(s) saved directly to sermon notes`);
+        toast(`${allToSave.length} passage(s) saved directly to topic notes`);
         render();
       }
       closeModal();
@@ -1243,7 +1243,7 @@ const ACTIONS = {
         await modalState.onSave(modalState.staged);
       } else if (modalState.sermonId) {
         await api(`/sermons/${modalState.sermonId}/verses`, 'POST', { verses: modalState.staged });
-        toast(`${modalState.staged.length} passage(s) saved to sermon notes!`);
+        toast(`${modalState.staged.length} passage(s) saved to topic notes!`);
         render();
       }
       closeModal();
@@ -1331,7 +1331,7 @@ const FORMS = {
     }
     body.verses = newSermonStagedVerses;
     const s = await api('/sermons', 'POST', body);
-    toast('Sermon created with ' + newSermonStagedVerses.length + ' scripture passage(s)');
+    toast('Topic created with ' + newSermonStagedVerses.length + ' scripture passage(s)');
     location.hash = '#/sermon/' + s.id;
   },
   async password() {
@@ -1424,7 +1424,7 @@ document.addEventListener('input', e => {
 
 /* ---------- Initialization ---------- */
 async function boot() {
-  app.innerHTML = '<main class="login"><div class="login-card"><p role="status">Loading sermon library…</p></div></main>';
+  app.innerHTML = '<main class="login"><div class="login-card"><p role="status">Loading Sunday service topics…</p></div></main>';
   try {
     const m = await api('/me');
     me = m.user;
