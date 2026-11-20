@@ -271,7 +271,7 @@ async function viewForm() {
       <div class="staging-area">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
           <div><b>Bible passages for this topic</b><br><span class="muted" id="form-staged-count">${newSermonStagedVerses.length} passage(s) staged</span></div>
-          <button type="button" class="btn small" data-act="form-add-passage">Add scripture</button>
+          <button type="button" class="btn small" data-act="form-add-passage">Add Bible verse</button>
         </div>
         <div id="form-staged-list" style="margin-top:.8rem">${renderFormStagedVerses()}</div>
       </div>`}

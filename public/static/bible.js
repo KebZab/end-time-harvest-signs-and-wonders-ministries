@@ -5,7 +5,7 @@ const translations = [
   { id: 'NIV', name: 'New International Version' }, { id: 'ESV', name: 'English Standard Version' },
   { id: 'NASB', name: 'New American Standard Bible' }, { id: 'AMP', name: 'Amplified Bible' },
   { id: 'NLT', name: 'New Living Translation' }, { id: 'WEB', name: 'World English Bible' },
-  { id: 'BBE', name: 'Bible in Basic English' }
+  { id: 'BBE', name: 'Bible in Basic English' }, { id: 'HIL', name: 'Hiligaynon' }
 ];
 const cache = new Map();
 const escapeHtml = s => String(s).replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,7 +14,9 @@ async function load(tr) {
   if (tr === 'KJV') return window.KJVBible;
   if (!cache.has(tr)) {
     const pending = (async () => {
-      const source = `https://raw.githubusercontent.com/thiagobodruk/bible/master/json/en_${tr.toLowerCase()}.json`;
+      const source = tr === 'HIL'
+        ? 'static/bibles/hil.json'
+        : `https://raw.githubusercontent.com/thiagobodruk/bible/master/json/en_${tr.toLowerCase()}.json`;
       const response = await fetch(source);
       if (!response.ok) throw new Error(`Could not load ${tr}. Check your internet connection and try again.`);
       const data = JSON.parse((await response.text()).replace(/^\uFEFF/,''));
